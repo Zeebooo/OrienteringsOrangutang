@@ -35,7 +35,7 @@ export default function AppTabs() {
 
       {/* Andra fliken (Profilen/Utforska) */}
       <Tabs.Screen
-        name="explore" // Ändra till "profile" om du skapar en profile.tsx senare
+        name="mapTest" // Ändra till "profile" om du skapar en profile.tsx senare
         options={{
           headerShown: false,
           tabBarIcon: ({ color }) => (
