@@ -2,11 +2,13 @@ import { StyleSheet } from 'react-native';
 import MapView from 'react-native-maps';
 
 export default function MapTestScreen() {
-  return <MapView style={styles.map} />;
+	return (
+		<MapView style={styles.map} />
+	);
 }
 
 const styles = StyleSheet.create({
-  map: {
-    flex: 1,
-  },
+	map: {
+		flex: 1,
+	},
 });
