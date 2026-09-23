@@ -1,39 +1,59 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
-
-import { Colors } from '@/constants/theme';
+import { Feather } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
 
 export default function AppTabs() {
-	const scheme = useColorScheme();
-	const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  return (
+    <Tabs
+      screenOptions={{
+        // Döljer texten under ikonerna
+        tabBarShowLabel: false, 
+        
+        // Design
+        tabBarStyle: {
+          backgroundColor: '#d4d4d4',
+          borderTopWidth: 0,
+          height: 70,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        
+        // Ikonfärger om de är aktiva eller ej
+        tabBarActiveTintColor: '#000',
+        tabBarInactiveTintColor: '#727272',
+      }}
+    >
+      {/* Första fliken (Kartan) */}
+      <Tabs.Screen
+        name="index" // Detta är din startsida
+        options={{
+          headerShown: false,
+          tabBarIcon: ({ color }) => (
+            <Feather name="map" size={28} color={color} />
+          ),
+        }}
+      />
 
-	return (
-		<NativeTabs
-			backgroundColor={colors.background}
-			indicatorColor={colors.backgroundElement}
-			labelStyle={{ selected: { color: colors.text } }}>
-			<NativeTabs.Trigger name="index">
-				<NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-				<NativeTabs.Trigger.Icon
-					src={require('@/assets/images/tabIcons/home.png')}
-					renderingMode="template"
-				/>
-			</NativeTabs.Trigger>
-
-			<NativeTabs.Trigger name="explore">
-				<NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-				<NativeTabs.Trigger.Icon
-					src={require('@/assets/images/tabIcons/explore.png')}
-					renderingMode="template"
-				/>
-			</NativeTabs.Trigger>
-			<NativeTabs.Trigger name="mapTest">
-				<NativeTabs.Trigger.Label>Test map</NativeTabs.Trigger.Label>
-				<NativeTabs.Trigger.Icon
-					src={require('@/assets/images/tabIcons/explore.png')}
-					renderingMode="template"
-				/>
-			</NativeTabs.Trigger>
-		</NativeTabs>
-	);
+      {/* Andra fliken (Profilen/Utforska) */}
+      <Tabs.Screen
+        name="explore" // Ändra till "profile" om du skapar en profile.tsx senare
+        options={{
+          headerShown: false,
+          tabBarIcon: ({ color }) => (
+            <Feather name="user" size={28} color={color} />
+          ),
+        }}
+      />
+      
+      {/* 
+        Om du vill behålla din "mapTest"-skärm lägger du till den så här, 
+        annars kan du ignorera detta: 
+      */}
+      <Tabs.Screen
+        name="mapTest"
+        options={{
+          href: null, // Döljer fliken från menyn, men låter dig navigera till skärmen via kod!
+        }}
+      />
+    </Tabs>
+  );
 }
