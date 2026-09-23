@@ -17,12 +17,10 @@ export type BoundingBox = {
 
 export type TerrainKind = 'open' | 'forest' | 'marsh' | 'water' | 'building' | 'stream' | 'road' | 'path';
 
-/** Genereras av scripts/getMap.js – redan sorterad i ritordning. */
 export type TerrainFeature = {
 	kind: TerrainKind;
 	shape: 'line' | 'polygon';
 	coordinates: Coordinate[];
-	holes?: Coordinate[][];
 };
 
 export type Terrain = {
