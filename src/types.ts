@@ -21,6 +21,7 @@ export type TerrainFeature = {
 	kind: TerrainKind;
 	shape: 'line' | 'polygon';
 	coordinates: Coordinate[];
+	holes?: Coordinate[][];
 };
 
 export type Terrain = {
