@@ -1,8 +1,9 @@
 import { StyleSheet } from 'react-native';
+import MapView from 'react-native-maps';
 
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 
-
+<MapView style={{ flex: 1 }} />
 
 const styles = StyleSheet.create({
 	container: {
