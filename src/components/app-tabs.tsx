@@ -49,17 +49,6 @@ export default function AppTabs() {
           ),
         }}
       />
-      
-      {/* 
-        Om du vill behålla din "mapTest"-skärm lägger du till den så här, 
-        annars kan du ignorera detta: 
-      */}
-      <Tabs.Screen
-        name="mapTest"
-        options={{
-          href: null, // Döljer fliken från menyn, men låter dig navigera till skärmen via kod!
-        }}
-      />
     </Tabs>
   );
 }
