@@ -16,6 +16,12 @@ export default function AppTabs() {
           elevation: 0,
           shadowOpacity: 0,
         },
+
+		// Centrerar innehållet (ikonen) i varje flik
+        tabBarItemStyle: {
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
         
         // Ikonfärger om de är aktiva eller ej
         tabBarActiveTintColor: '#000',
