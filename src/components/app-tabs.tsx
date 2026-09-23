@@ -30,7 +30,7 @@ export default function AppTabs() {
     >
       {/* Första fliken (Kartan) */}
       <Tabs.Screen
-        name="mapTest" // Detta är din startsida
+        name="mapTest"
         options={{
           headerShown: false,
           tabBarIcon: ({ color }) => (
@@ -41,7 +41,7 @@ export default function AppTabs() {
 
       {/* Andra fliken (Profilen/Utforska) */}
       <Tabs.Screen
-        name="index" // Ändra till "profile" om du skapar en profile.tsx senare
+        name="index"
         options={{
           headerShown: false,
           tabBarIcon: ({ color }) => (
