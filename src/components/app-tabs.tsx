@@ -16,6 +16,12 @@ export default function AppTabs() {
           elevation: 0,
           shadowOpacity: 0,
         },
+
+		// Centrerar innehållet (ikonen) i varje flik
+        tabBarItemStyle: {
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
         
         // Ikonfärger om de är aktiva eller ej
         tabBarActiveTintColor: '#000',
@@ -41,17 +47,6 @@ export default function AppTabs() {
           tabBarIcon: ({ color }) => (
             <Feather name="user" size={28} color={color} />
           ),
-        }}
-      />
-      
-      {/* 
-        Om du vill behålla din "mapTest"-skärm lägger du till den så här, 
-        annars kan du ignorera detta: 
-      */}
-      <Tabs.Screen
-        name="mapTest"
-        options={{
-          href: null, // Döljer fliken från menyn, men låter dig navigera till skärmen via kod!
         }}
       />
     </Tabs>
