@@ -1,6 +1,6 @@
 import { bboxToRegion } from '@/utilities/bboxToRegion';
 import { StyleSheet } from 'react-native';
-import MapView, { Polygon, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polygon, Polyline } from 'react-native-maps';
 
 import { getMapById } from '@/data/maps';
 import type { TerrainFeature } from '@/types';
@@ -59,7 +59,7 @@ function renderTerrainFeature(feature: TerrainFeature, index: number) {
 
 
 export default function MapTestScreen() {
-	const map = getMapById('slottsskogen');
+	const map = getMapById('campus');
 
 	if (!map || !map.terrain) {
 		return null; // eller visa ett felmeddelande
@@ -68,6 +68,14 @@ export default function MapTestScreen() {
 	return (
 		<MapView style={styles.map} initialRegion={bboxToRegion(map.bbox)}>
 			{map.terrain.features.map((feature, index) => renderTerrainFeature(feature, index))}
+			{map.controls.map((marker, index) => (
+				<Marker
+					key={index}
+					coordinate={marker}
+					title={marker.id}
+					description={marker.description}
+				/>
+			))}
 		</MapView>
 	);
 }
