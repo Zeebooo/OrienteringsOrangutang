@@ -4,11 +4,10 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Importera era riktiga kartor och typer från kompisens fil
+import { useProgress } from '@/context/ProgressContext';
 import { maps } from '@/data/maps';
 import type { OMap } from '@/types';
 
-// Hjälpfunktion för att översätta systemets svårighetsgrad till svensk UI-text och antal prickar
 function getDifficultyInfo(difficulty: string) {
   switch (difficulty) {
     case 'Easy': return { text: 'Lätt', level: 1 };
@@ -20,33 +19,36 @@ function getDifficultyInfo(difficulty: string) {
 
 export default function MapsScreen() {
   const router = useRouter();
-  
-  // State som håller koll på vilken flik som är vald (Standard är 'Nya')
   const [activeTab, setActiveTab] = useState('Nya');
+  
+  const { startedMaps, completedMaps } = useProgress();
 
-  // Skapar en UI-anpassad lista av era kartor
   const uiMaps = maps.map((mapData: OMap) => {
     const diffInfo = getDifficultyInfo(mapData.difficulty);
+    
+    let currentStatus = 'Nya';
+    if (completedMaps.includes(mapData.id)) {
+      currentStatus = 'Avklarade';
+    } else if (startedMaps.includes(mapData.id)) {
+      currentStatus = 'Påbörjade';
+    }
     
     return {
       id: mapData.id,
       title: mapData.name,
-      location: 'Umeå', // Platshållare tills ni lägger till ort i OMap
-      distance: '4,0 km', // Platshållare för uträknad distans
+      location: 'Umeå', 
+      distance: '4,0 km', 
       difficulty: diffInfo.text,
       diffLevel: diffInfo.level,
-      // Testlogik: Lägger "campus"-kartan i Påbörjade, och alla framtida kartor i Nya
-      status: mapData.id === 'campus' ? 'Påbörjade' : 'Nya', 
+      status: currentStatus, 
     };
   });
 
-  // Filtrerar kartorna baserat på vald flik
   const displayedMaps = uiMaps.filter(item => item.status === activeTab);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity>
           <Feather name="menu" size={28} color="black" />
@@ -57,7 +59,6 @@ export default function MapsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* FLIKAR (Sub-navigation) */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
           style={[styles.tabButton, activeTab === 'Nya' && styles.activeTabButton]}
@@ -81,24 +82,20 @@ export default function MapsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* LISTA MED KARTOR */}
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
         {displayedMaps.map((item) => (
           <TouchableOpacity 
             key={item.id} 
             style={styles.card}
             onPress={() => {
-              // Navigerar till detaljvyn och skickar med kartans ID
               router.push(`/map?id=${item.id}`); 
             }}
           >
             
-            {/* Bild-platshållare */}
             <View style={styles.imagePlaceholder}>
               <Text style={styles.imageText}>Karta</Text>
             </View>
 
-            {/* Information */}
             <View style={styles.infoContainer}>
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardSubText}>{item.location}</Text>
@@ -106,8 +103,6 @@ export default function MapsScreen() {
               
               <View style={styles.difficultyContainer}>
                 <Text style={styles.cardSubText}>{item.difficulty}</Text>
-                
-                {/* Genererar prickar baserat på svårighetsgrad (1-3) */}
                 <View style={styles.dotsRow}>
                   {[1, 2, 3].map((dot) => (
                     <View 
@@ -122,7 +117,6 @@ export default function MapsScreen() {
               </View>
             </View>
 
-            {/* Pil höger */}
             <View style={styles.chevronContainer}>
               <Feather name="chevron-right" size={24} color="black" />
             </View>
