@@ -1,32 +1,47 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react'; // 1. Importera useState
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Mock-data med en ny egenskap: "status"
-const mapsData = [
-  // NYA
-  { id: '1', title: 'Tegsområdet', location: 'Umeå', distance: '5,2 km', difficulty: 'Medelsvår', diffLevel: 2, status: 'Nya' },
-  { id: '2', title: 'Nydalasjön', location: 'Umeå', distance: '3,8 km', difficulty: 'Lätt', diffLevel: 1, status: 'Nya' },
-  { id: '3', title: 'Tegsområdet', location: 'Umeå', distance: '3,8 km', difficulty: 'Medelsvår', diffLevel: 2, status: 'Nya' },
-  { id: '4', title: 'Tegsområdet', location: 'Umeå', distance: '3,8 km', difficulty: 'Medelsvår', diffLevel: 2, status: 'Nya' },
-  
-  // PÅBÖRJADE
-  { id: '5', title: 'Nydalasjön', location: 'Umeå', distance: '3,8 km', difficulty: 'Lätt', diffLevel: 1, status: 'Påbörjade' },
-  
-  // AVKLARADE
-  { id: '6', title: 'Stadsskogen', location: 'Umeå', distance: '4,5 km', difficulty: 'Medelsvår', diffLevel: 2, status: 'Avklarade' },
-];
+// Importera era riktiga kartor och typer från kompisens fil
+import { maps } from '@/data/maps';
+import type { OMap } from '@/types';
+
+// Hjälpfunktion för att översätta systemets svårighetsgrad till svensk UI-text och antal prickar
+function getDifficultyInfo(difficulty: string) {
+  switch (difficulty) {
+    case 'Easy': return { text: 'Lätt', level: 1 };
+    case 'Medium': return { text: 'Medelsvår', level: 2 };
+    case 'Hard': return { text: 'Svår', level: 3 };
+    default: return { text: 'Okänd', level: 0 };
+  }
+}
 
 export default function MapsScreen() {
   const router = useRouter();
   
-  // 2. Skapa ett state som håller koll på vilken flik som är klickad. Standard är 'Nya'.
+  // State som håller koll på vilken flik som är vald (Standard är 'Nya')
   const [activeTab, setActiveTab] = useState('Nya');
 
-  // 3. Filtrera listan så att bara de kartor som har samma status som den aktiva fliken visas
-  const displayedMaps = mapsData.filter(item => item.status === activeTab);
+  // Skapar en UI-anpassad lista av era kartor
+  const uiMaps = maps.map((mapData: OMap) => {
+    const diffInfo = getDifficultyInfo(mapData.difficulty);
+    
+    return {
+      id: mapData.id,
+      title: mapData.name,
+      location: 'Umeå', // Platshållare tills ni lägger till ort i OMap
+      distance: '4,0 km', // Platshållare för uträknad distans
+      difficulty: diffInfo.text,
+      diffLevel: diffInfo.level,
+      // Testlogik: Lägger "campus"-kartan i Påbörjade, och alla framtida kartor i Nya
+      status: mapData.id === 'campus' ? 'Påbörjade' : 'Nya', 
+    };
+  });
+
+  // Filtrerar kartorna baserat på vald flik
+  const displayedMaps = uiMaps.filter(item => item.status === activeTab);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -44,7 +59,6 @@ export default function MapsScreen() {
 
       {/* FLIKAR (Sub-navigation) */}
       <View style={styles.tabContainer}>
-        {/* Flik: Nya */}
         <TouchableOpacity 
           style={[styles.tabButton, activeTab === 'Nya' && styles.activeTabButton]}
           onPress={() => setActiveTab('Nya')}
@@ -52,7 +66,6 @@ export default function MapsScreen() {
           <Text style={[styles.tabText, activeTab === 'Nya' && styles.activeTabText]}>Nya</Text>
         </TouchableOpacity>
         
-        {/* Flik: Påbörjade */}
         <TouchableOpacity 
           style={[styles.tabButton, activeTab === 'Påbörjade' && styles.activeTabButton]}
           onPress={() => setActiveTab('Påbörjade')}
@@ -60,7 +73,6 @@ export default function MapsScreen() {
           <Text style={[styles.tabText, activeTab === 'Påbörjade' && styles.activeTabText]}>Påbörjade</Text>
         </TouchableOpacity>
         
-        {/* Flik: Avklarade */}
         <TouchableOpacity 
           style={[styles.tabButton, activeTab === 'Avklarade' && styles.activeTabButton]}
           onPress={() => setActiveTab('Avklarade')}
@@ -71,14 +83,13 @@ export default function MapsScreen() {
 
       {/* LISTA MED KARTOR */}
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
-        {/* 4. Vi loopar igenom 'displayedMaps' istället för hela 'mapsData' */}
         {displayedMaps.map((item) => (
           <TouchableOpacity 
             key={item.id} 
             style={styles.card}
             onPress={() => {
-              // Gör så att alla kartor går att klicka på för att testa informationsvyn
-              router.push('/map'); 
+              // Navigerar till detaljvyn och skickar med kartans ID
+              router.push(`/map?id=${item.id}`); 
             }}
           >
             
@@ -95,6 +106,8 @@ export default function MapsScreen() {
               
               <View style={styles.difficultyContainer}>
                 <Text style={styles.cardSubText}>{item.difficulty}</Text>
+                
+                {/* Genererar prickar baserat på svårighetsgrad (1-3) */}
                 <View style={styles.dotsRow}>
                   {[1, 2, 3].map((dot) => (
                     <View 
