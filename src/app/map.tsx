@@ -59,7 +59,7 @@ export default function MapDetailScreen() {
   return (
     <View style={styles.container}>
       
-      <MapView style={StyleSheet.absoluteFillObject} initialRegion={bboxToRegion(map.bbox)}>
+      <MapView style={StyleSheet.absoluteFill} initialRegion={bboxToRegion(map.bbox)}>
           {map.terrain.features.map((feature, index) => renderTerrainFeature(feature, index))}
           {map.controls.map((marker, index) => (
               <Marker key={index} coordinate={marker} />
