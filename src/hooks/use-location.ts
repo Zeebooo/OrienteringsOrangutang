@@ -23,9 +23,9 @@ export function useLocation() {
 				return;
 			}
 
-			// Uppdateras löpande när användaren rör sig (var 5:e meter)
+			// Uppdateras löpande när användaren rör sig (var 2:e meter)
 			subscription = await Location.watchPositionAsync(
-				{ accuracy: Location.Accuracy.High, distanceInterval: 5 },
+				{ accuracy: Location.Accuracy.High, distanceInterval: 2 },
 				(position) => {
 					setLocation({
 						latitude: position.coords.latitude,
