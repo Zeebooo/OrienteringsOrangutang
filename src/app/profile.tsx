@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native'; // SafeAreaView är borttagen härifrån
+import { SafeAreaView } from 'react-native-safe-area-context'; // Ny import här
 
 const { width } = Dimensions.get('window');
 
@@ -16,7 +17,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* PROFILBILD (Överlappar den vita toppen) */}
+        {/* PROFILBILD  */}
         <View style={styles.profileImageContainer}>
           <Text style={styles.profileImageText}>Profilbild</Text>
         </View>
