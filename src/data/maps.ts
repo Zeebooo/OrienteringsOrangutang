@@ -1,4 +1,5 @@
 import type { Control, Coordinate, OMap, Terrain } from '@/types';
+import berghemTerrain from './terrain/berghem.json';
 import campusTerrain from './terrain/campus.json';
 
 // Det man skriver för hand: bbox hämtas från terrängen, start/finish är valfria.
@@ -36,6 +37,14 @@ export const maps: OMap[] = [
 			{ id: 'c1', latitude: 63.821577213387, longitude: 20.310382985291987 },
 		], // TODO: lägg till kontroller på campus
 		terrain: campusTerrain as Terrain,
+	}),
+		defineMap({
+		id: 'berghem',
+		name: 'berghem',
+		description: 'Kort bana i berghem',
+		difficulty: 'Easy',
+		controls: [], 
+		terrain: berghemTerrain as Terrain,
 	}),
 	// nästa karta...
 ];
