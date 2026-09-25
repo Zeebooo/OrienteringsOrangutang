@@ -1,9 +1,9 @@
 import { useLocation } from '@/hooks/use-location';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker, Polygon, Polyline, type Region } from 'react-native-maps';
+import MapView, { Marker, Polygon, Polyline } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
@@ -27,33 +27,31 @@ function getTerrainColor(kind: string): string {
 	}
 }
 
-// Hur mycket linjerna får krympa/växa jämfört med startzoomen,
-// så att de varken försvinner helt eller blir enorma.
-const MIN_ZOOM_SCALE = 0.2;
-const MAX_ZOOM_SCALE = 4;
+// Begränsar hur långt in/ut man kan zooma.
+// iOS (Apple Maps): kamerans avstånd till marken i meter – mindre = mer inzoomat.
+const CAMERA_ZOOM_RANGE = { minCenterCoordinateDistance: 1000, maxCenterCoordinateDistance: 6000 };
+// Android (Google Maps): zoomnivå 0–20 – högre = mer inzoomat.
+const MIN_ZOOM_LEVEL = 14; // längst ut
+const MAX_ZOOM_LEVEL = 19; // längst in
 
-/**
- * Linjebredder anges i skärmpixlar och ändras inte när man zoomar.
- * `scale` räknar om dem så att de följer kartan, som på en papperskarta.
- */
-function renderTerrainFeature(feature: any, index: number, scale: number) {
+function renderTerrainFeature(feature: any, index: number) {
 	const { kind, shape, coordinates } = feature;
 	if (shape === 'line') {
 		if (feature.kind === 'path') {
-			return <Polyline key={index} coordinates={coordinates} strokeColor={getTerrainColor(kind)} strokeWidth={1 * scale} lineDashPattern={[2 * scale, 3 * scale]} />;
+			return <Polyline key={index} coordinates={coordinates} strokeColor={getTerrainColor(kind)} strokeWidth={1} lineDashPattern={[1, 2]} />;
 		}
 		else if (kind === 'road') {
 			return (
 				<Fragment key={index}>
-					<Polyline coordinates={coordinates} strokeColor={ROAD_OUTLINE_COLOR} strokeWidth={5 * scale} />
-					<Polyline coordinates={coordinates} strokeColor={getTerrainColor(kind)} strokeWidth={3 * scale} />
+					<Polyline coordinates={coordinates} strokeColor={ROAD_OUTLINE_COLOR} strokeWidth={5} />
+					<Polyline coordinates={coordinates} strokeColor={getTerrainColor(kind)} strokeWidth={3} />
 				</Fragment>
 			);
 		}
 		else
-			return <Polyline key={index} coordinates={coordinates} strokeColor={getTerrainColor(kind)} strokeWidth={3 * scale} />;
+			return <Polyline key={index} coordinates={coordinates} strokeColor={getTerrainColor(kind)} strokeWidth={3} />;
 	} else if (shape === 'polygon') {
-		return <Polygon key={index} coordinates={coordinates} fillColor={getTerrainColor(kind)} strokeColor={getTerrainColor(kind)} strokeWidth={1 * scale} holes={feature.holes} />;
+		return <Polygon key={index} coordinates={coordinates} fillColor={getTerrainColor(kind)} strokeColor={getTerrainColor(kind)} strokeWidth={1} holes={feature.holes} />;
 	}
 	return null;
 }
@@ -75,8 +73,6 @@ export default function MapDetailScreen() {
 	const { startedMaps, completedMaps, startMap, completeMap } = useProgress();
 	// Hooks måste anropas före alla tidiga return
 	const { location } = useLocation();
-	// 1 = startzoomen. Mindre än 1 när man zoomat ut, större när man zoomat in.
-	const [zoomScale, setZoomScale] = useState(1);
 
 	const mapId = Array.isArray(id) ? id[0] : id;
 	const map = getMapById(mapId || 'berghem');
@@ -96,14 +92,6 @@ export default function MapDetailScreen() {
 			</View>
 		);
 	}
-
-	const initialRegion = bboxToRegion(map.bbox);
-
-	const handleRegionChange = (region: Region) => {
-		// latitudeDelta = hur stort område som syns. Dubbelt så stort → hälften så tjocka linjer.
-		const scale = initialRegion.latitudeDelta / region.latitudeDelta;
-		setZoomScale(Math.min(MAX_ZOOM_SCALE, Math.max(MIN_ZOOM_SCALE, scale)));
-	};
 
 	// 2. Vi räknar ut status här istället för nere vid knappen
 	const isCompleted = completedMaps.includes(map.id);
@@ -129,12 +117,14 @@ export default function MapDetailScreen() {
 
 			<MapView
 				style={StyleSheet.absoluteFill}
-				initialRegion={initialRegion}
-				onRegionChangeComplete={handleRegionChange}
+				initialRegion={bboxToRegion(map.bbox)}
+				cameraZoomRange={CAMERA_ZOOM_RANGE}
+				minZoomLevel={MIN_ZOOM_LEVEL}
+				maxZoomLevel={MAX_ZOOM_LEVEL}
 				showsUserLocation={true}
 				userInterfaceStyle="light"
 			>
-				{map.terrain.features.map((feature, index) => renderTerrainFeature(feature, index, zoomScale))}
+				{map.terrain.features.map((feature, index) => renderTerrainFeature(feature, index))}
 				{map.controls.map((marker, index) => (
 					<Marker key={index} coordinate={marker} />
 				))}
