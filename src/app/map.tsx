@@ -5,7 +5,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, Polygon, Polyline } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors } from '@/constants/theme'; // <--- Importerar färgerna
+import { Colors } from '@/constants/theme';
 import { useProgress } from '@/context/ProgressContext';
 import { getMapById } from '@/data/maps';
 import { bboxToRegion } from '@/utilities/bboxToRegion';
@@ -47,6 +47,9 @@ export default function MapDetailScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
 
+    // 1. VIKTIGT: Vi flyttar upp useProgress() hit till toppen!
+    const { startedMaps, completedMaps, startMap, completeMap } = useProgress();
+
     const mapId = Array.isArray(id) ? id[0] : id;
     const map = getMapById(mapId || 'campus');
 
@@ -58,7 +61,6 @@ export default function MapDetailScreen() {
         );
     }
 
-    // Kompisens GPS-kod!
     const { location } = useLocation();
     if (!location) {
         return (
@@ -67,6 +69,25 @@ export default function MapDetailScreen() {
             </View>
         );
     }
+
+    // 2. Vi räknar ut status här istället för nere vid knappen
+    const isCompleted = completedMaps.includes(map.id);
+    const isStarted = startedMaps.includes(map.id);
+
+    const handlePress = () => {
+        if (isCompleted) {
+            router.back();
+        } else if (isStarted) {
+            completeMap(map.id);
+            router.back();
+        } else {
+            startMap(map.id);
+        }
+    };
+
+    let buttonText = 'Starta bana';
+    if (isCompleted) buttonText = 'Se resultat';
+    if (isStarted && !isCompleted) buttonText = 'Avsluta orientering (Test)';
 
     return (
         <View style={styles.container}>
@@ -105,33 +126,10 @@ export default function MapDetailScreen() {
                         </View>
                     </View>
 
-                    {(() => {
-                        const { startedMaps, completedMaps, startMap, completeMap } = useProgress();
-
-                        const isCompleted = completedMaps.includes(map.id);
-                        const isStarted = startedMaps.includes(map.id);
-
-                        const handlePress = () => {
-                            if (isCompleted) {
-                                router.back();
-                            } else if (isStarted) {
-                                completeMap(map.id);
-                                router.back();
-                            } else {
-                                startMap(map.id);
-                            }
-                        };
-
-                        let buttonText = 'Starta bana';
-                        if (isCompleted) buttonText = 'Se resultat';
-                        if (isStarted && !isCompleted) buttonText = 'Avsluta orientering (Test)';
-
-                        return (
-                            <TouchableOpacity style={styles.startButton} onPress={handlePress}>
-                                <Text style={styles.startButtonText}>{buttonText}</Text>
-                            </TouchableOpacity>
-                        );
-                    })()}
+                    {/* 3. Knappen är nu mycket renare eftersom logiken ligger i toppen */}
+                    <TouchableOpacity style={styles.startButton} onPress={handlePress}>
+                        <Text style={styles.startButtonText}>{buttonText}</Text>
+                    </TouchableOpacity>
 
                 </View>
             </SafeAreaView>
