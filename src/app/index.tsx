@@ -1,18 +1,47 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // 1. Ny import för navigering
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Mock-data baserat på er prototyp
-const mapsData = [
-  { id: '1', title: 'Tegsområdet', location: 'Umeå', distance: '5,2 km', difficulty: 'Medelsvår', diffLevel: 2 },
-  { id: '2', title: 'Nydalasjön', location: 'Umeå', distance: '3,8 km', difficulty: 'Lätt', diffLevel: 1 },
-  { id: '3', title: 'Tegsområdet', location: 'Umeå', distance: '3,8 km', difficulty: 'Medelsvår', diffLevel: 2 },
-  { id: '4', title: 'Slottsskogen', location: 'Göteborg', distance: '6,7 km', difficulty: 'Medelsvår', diffLevel: 2 },
-];
+// Importera era riktiga kartor och typer från kompisens fil
+import { maps } from '@/data/maps';
+import type { OMap } from '@/types';
+
+// Hjälpfunktion för att översätta systemets svårighetsgrad till svensk UI-text och antal prickar
+function getDifficultyInfo(difficulty: string) {
+  switch (difficulty) {
+    case 'Easy': return { text: 'Lätt', level: 1 };
+    case 'Medium': return { text: 'Medelsvår', level: 2 };
+    case 'Hard': return { text: 'Svår', level: 3 };
+    default: return { text: 'Okänd', level: 0 };
+  }
+}
 
 export default function MapsScreen() {
-  const router = useRouter(); // 2. Aktivera routern
+  const router = useRouter();
+  
+  // State som håller koll på vilken flik som är vald (Standard är 'Nya')
+  const [activeTab, setActiveTab] = useState('Nya');
+
+  // Skapar en UI-anpassad lista av era kartor
+  const uiMaps = maps.map((mapData: OMap) => {
+    const diffInfo = getDifficultyInfo(mapData.difficulty);
+    
+    return {
+      id: mapData.id,
+      title: mapData.name,
+      location: 'Umeå', // Platshållare tills ni lägger till ort i OMap
+      distance: '4,0 km', // Platshållare för uträknad distans
+      difficulty: diffInfo.text,
+      diffLevel: diffInfo.level,
+      // Testlogik: Lägger "campus"-kartan i Påbörjade, och alla framtida kartor i Nya
+      status: mapData.id === 'campus' ? 'Påbörjade' : 'Nya', 
+    };
+  });
+
+  // Filtrerar kartorna baserat på vald flik
+  const displayedMaps = uiMaps.filter(item => item.status === activeTab);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -30,28 +59,37 @@ export default function MapsScreen() {
 
       {/* FLIKAR (Sub-navigation) */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity style={[styles.tabButton, styles.activeTabButton]}>
-          <Text style={[styles.tabText, styles.activeTabText]}>Nya</Text>
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'Nya' && styles.activeTabButton]}
+          onPress={() => setActiveTab('Nya')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Nya' && styles.activeTabText]}>Nya</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabButton}>
-          <Text style={styles.tabText}>Påbörjade</Text>
+        
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'Påbörjade' && styles.activeTabButton]}
+          onPress={() => setActiveTab('Påbörjade')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Påbörjade' && styles.activeTabText]}>Påbörjade</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabButton}>
-          <Text style={styles.tabText}>Avklarade</Text>
+        
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'Avklarade' && styles.activeTabButton]}
+          onPress={() => setActiveTab('Avklarade')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Avklarade' && styles.activeTabText]}>Avklarade</Text>
         </TouchableOpacity>
       </View>
 
       {/* LISTA MED KARTOR */}
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
-        {mapsData.map((item) => (
+        {displayedMaps.map((item) => (
           <TouchableOpacity 
             key={item.id} 
             style={styles.card}
             onPress={() => {
-              // 3. Navigera bara om man klickar på det fjärde kortet
-              if (item.id === '4') {
-                router.push('/map'); 
-              }
+              // Navigerar till detaljvyn och skickar med kartans ID
+              router.push(`/map?id=${item.id}`); 
             }}
           >
             
@@ -68,6 +106,8 @@ export default function MapsScreen() {
               
               <View style={styles.difficultyContainer}>
                 <Text style={styles.cardSubText}>{item.difficulty}</Text>
+                
+                {/* Genererar prickar baserat på svårighetsgrad (1-3) */}
                 <View style={styles.dotsRow}>
                   {[1, 2, 3].map((dot) => (
                     <View 
