@@ -1,73 +1,111 @@
 import { Feather } from '@expo/vector-icons';
-import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native'; // SafeAreaView är borttagen härifrån
-import { SafeAreaView } from 'react-native-safe-area-context'; // Ny import här
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         
         {/* VITA TOPPEN MED KURVA */}
         <View style={styles.headerContainer}>
           <View style={styles.headerTopIcons}>
-            <Feather name="bell" size={28} color="black" />
-            <Feather name="more-vertical" size={28} color="black" />
+            <TouchableOpacity>
+              <Feather name="bell" size={24} color="black" />
+            </TouchableOpacity>
+            <TouchableOpacity>
+              <Feather name="settings" size={24} color="black" />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* PROFILBILD  */}
-        <View style={styles.profileImageContainer}>
-          <Text style={styles.profileImageText}>Profilbild</Text>
+        {/* PROFILBILD (Överlappar den vita toppen) */}
+        <View style={styles.profileImageWrapper}>
+          <View style={styles.profileImageContainer}>
+            <Feather name="user" size={50} color="#757575" />
+          </View>
         </View>
 
-        {/* NAMN OCH BESKRIVNING */}
-        <Text style={styles.nameText}>Förnamn Efternamn</Text>
-        <Text style={styles.bioText}>Lorem ipsum dolor sit amet</Text>
+        {/* NAMN OCH NIVÅ */}
+        <Text style={styles.nameText}>Rickard</Text>
+        <Text style={styles.levelText}>Stigfinnare • Nivå 4</Text>
 
-        {/* INSTÄLLNINGSRUTA */}
+        {/* STATISTIK-RAD */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>12</Text>
+            <Text style={styles.statLabel}>Kartor</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>47</Text>
+            <Text style={styles.statLabel}>Kontroller</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>34</Text>
+            <Text style={styles.statLabel}>Km gått</Text>
+          </View>
+        </View>
+
+        {/* SEKTION: MIN ORIENTERING */}
+        <Text style={styles.sectionTitle}>Min orientering</Text>
         <View style={styles.card}>
-          {/* Rad 1 */}
-          <View style={styles.cardRow}>
+          <TouchableOpacity style={styles.menuRow}>
             <View style={styles.rowLeft}>
-              <Feather name="square" size={18} color="white" />
-              <Text style={styles.cardText}>Ändra profilinformation</Text>
+              <View style={styles.iconWrapper}>
+                <Feather name="map" size={18} color="#C87B4E" />
+              </View>
+              <Text style={styles.menuText}>Min historik</Text>
             </View>
-          </View>
+            <Feather name="chevron-right" size={20} color="#A0A0A0" />
+          </TouchableOpacity>
           
-          {/* Rad 2 */}
-          <View style={styles.cardRow}>
+          <View style={styles.separator} />
+
+          <TouchableOpacity style={styles.menuRow}>
             <View style={styles.rowLeft}>
-              <Feather name="square" size={18} color="white" />
-              <Text style={styles.cardText}>Notifikationer</Text>
+              <View style={styles.iconWrapper}>
+                <Feather name="award" size={18} color="#C87B4E" />
+              </View>
+              <Text style={styles.menuText}>Utmärkelser & Badges</Text>
             </View>
-            <Text style={styles.cardActionText}>PÅ</Text>
-          </View>
+            <Feather name="chevron-right" size={20} color="#A0A0A0" />
+          </TouchableOpacity>
+        </View>
 
-          {/* Rad 3 */}
-          <View style={styles.cardRow}>
+        {/* SEKTION: INSTÄLLNINGAR */}
+        <Text style={styles.sectionTitle}>Inställningar</Text>
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.menuRow}>
             <View style={styles.rowLeft}>
-              <Feather name="square" size={18} color="white" />
-              <Text style={styles.cardText}>Språk</Text>
+              <View style={styles.iconWrapper}>
+                <Feather name="edit-3" size={18} color="#757575" />
+              </View>
+              <Text style={styles.menuText}>Ändra profilinformation</Text>
             </View>
-            <Text style={styles.cardActionText}>Svenska</Text>
-          </View>
+            <Feather name="chevron-right" size={20} color="#A0A0A0" />
+          </TouchableOpacity>
+
+          <View style={styles.separator} />
+
+          <TouchableOpacity style={styles.menuRow}>
+            <View style={styles.rowLeft}>
+              <View style={styles.iconWrapper}>
+                <Feather name="globe" size={18} color="#757575" />
+              </View>
+              <Text style={styles.menuText}>Språk</Text>
+            </View>
+            <Text style={styles.actionText}>Svenska</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* LOREM IPSUM RUTA 1 */}
-        <View style={styles.card}>
-          <Text style={styles.loremText}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-          </Text>
-        </View>
-
-        {/* LOREM IPSUM RUTA 2 */}
-        <View style={styles.card}>
-          <Text style={styles.loremText}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation laboris nisi ut aliquip ex ea commodo consequat. Duis aute
-          </Text>
-        </View>
+        {/* LOGGA UT KNAPP */}
+        <TouchableOpacity style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logga ut</Text>
+        </TouchableOpacity>
 
       </ScrollView>
     </SafeAreaView>
@@ -77,23 +115,28 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF', // Håller området ovanför kurvan vitt
   },
   container: {
     flex: 1,
-    backgroundColor: '#9E9E9E',
+    backgroundColor: '#F5F4EE', // Ljusbeige bakgrund för hela skärmen
   },
   contentContainer: {
     paddingBottom: 40,
   },
   headerContainer: {
-    backgroundColor: '#ffffff',
-    height: 180,
+    backgroundColor: '#FFFFFF',
+    height: 140,
     borderBottomLeftRadius: width,
     borderBottomRightRadius: width,
     transform: [{ scaleX: 1.2 }],
     alignItems: 'center',
     paddingTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 3,
   },
   headerTopIcons: {
     width: '100%',
@@ -102,63 +145,131 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40, 
     transform: [{ scaleX: 1 / 1.2 }], 
   },
-  profileImageContainer: {
-    width: 130,
-    height: 130,
-    backgroundColor: '#D6D6D6',
-    borderRadius: 65,
+  profileImageWrapper: {
     alignSelf: 'center',
+    marginTop: -55, 
+    zIndex: 10,
+    backgroundColor: '#F5F4EE',
+    borderRadius: 70,
+    padding: 6, // Skapar en beige kant mellan cirkeln och den vita bakgrunden
+  },
+  profileImageContainer: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -65, 
-    zIndex: 10,
-  },
-  profileImageText: {
-    fontSize: 12,
-    color: '#000',
+    borderWidth: 2,
+    borderColor: '#C87B4E', // Er orangea färg som accent
   },
   nameText: {
     textAlign: 'center',
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     marginTop: 10,
+    color: '#333',
   },
-  bioText: {
+  levelText: {
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: 14,
+    color: '#C87B4E',
+    fontWeight: '600',
+    marginTop: 4,
     marginBottom: 20,
   },
-  card: {
-    backgroundColor: '#757575',
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 20,
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
+    paddingVertical: 15,
+    borderRadius: 12,
+    marginBottom: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  cardRow: {
+  statBox: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 5,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#757575',
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#757575',
+    marginLeft: 25,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 25,
+    paddingHorizontal: 15,
+  },
+  menuRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 5,
+    paddingVertical: 15,
   },
   rowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  cardText: {
-    color: '#ffffff',
+  iconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F5F4EE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  menuText: {
+    color: '#333',
     fontSize: 16,
-    marginLeft: 10,
     fontWeight: '500',
   },
-  cardActionText: {
-    color: '#ffffff',
+  actionText: {
+    color: '#757575',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '500',
   },
-  loremText: {
-    color: '#ffffff',
-    fontSize: 14,
-    lineHeight: 20,
+  separator: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+    marginLeft: 44, // Justerad så linjen börjar efter ikonen
+  },
+  logoutButton: {
+    marginHorizontal: 20,
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logoutText: {
+    color: '#D32F2F', // Röd färg för destruktiv handling
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
