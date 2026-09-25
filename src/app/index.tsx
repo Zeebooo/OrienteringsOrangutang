@@ -1,18 +1,32 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // 1. Ny import för navigering
+import { useRouter } from 'expo-router';
+import { useState } from 'react'; // 1. Importera useState
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Mock-data baserat på er prototyp
+// Mock-data med en ny egenskap: "status"
 const mapsData = [
-  { id: '1', title: 'Tegsområdet', location: 'Umeå', distance: '5,2 km', difficulty: 'Medelsvår', diffLevel: 2 },
-  { id: '2', title: 'Nydalasjön', location: 'Umeå', distance: '3,8 km', difficulty: 'Lätt', diffLevel: 1 },
-  { id: '3', title: 'Tegsområdet', location: 'Umeå', distance: '3,8 km', difficulty: 'Medelsvår', diffLevel: 2 },
-  { id: '4', title: 'Slottsskogen', location: 'Göteborg', distance: '6,7 km', difficulty: 'Medelsvår', diffLevel: 2 },
+  // NYA
+  { id: '1', title: 'Tegsområdet', location: 'Umeå', distance: '5,2 km', difficulty: 'Medelsvår', diffLevel: 2, status: 'Nya' },
+  { id: '2', title: 'Nydalasjön', location: 'Umeå', distance: '3,8 km', difficulty: 'Lätt', diffLevel: 1, status: 'Nya' },
+  { id: '3', title: 'Tegsområdet', location: 'Umeå', distance: '3,8 km', difficulty: 'Medelsvår', diffLevel: 2, status: 'Nya' },
+  { id: '4', title: 'Tegsområdet', location: 'Umeå', distance: '3,8 km', difficulty: 'Medelsvår', diffLevel: 2, status: 'Nya' },
+  
+  // PÅBÖRJADE
+  { id: '5', title: 'Nydalasjön', location: 'Umeå', distance: '3,8 km', difficulty: 'Lätt', diffLevel: 1, status: 'Påbörjade' },
+  
+  // AVKLARADE
+  { id: '6', title: 'Stadsskogen', location: 'Umeå', distance: '4,5 km', difficulty: 'Medelsvår', diffLevel: 2, status: 'Avklarade' },
 ];
 
 export default function MapsScreen() {
-  const router = useRouter(); // 2. Aktivera routern
+  const router = useRouter();
+  
+  // 2. Skapa ett state som håller koll på vilken flik som är klickad. Standard är 'Nya'.
+  const [activeTab, setActiveTab] = useState('Nya');
+
+  // 3. Filtrera listan så att bara de kartor som har samma status som den aktiva fliken visas
+  const displayedMaps = mapsData.filter(item => item.status === activeTab);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -30,28 +44,41 @@ export default function MapsScreen() {
 
       {/* FLIKAR (Sub-navigation) */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity style={[styles.tabButton, styles.activeTabButton]}>
-          <Text style={[styles.tabText, styles.activeTabText]}>Nya</Text>
+        {/* Flik: Nya */}
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'Nya' && styles.activeTabButton]}
+          onPress={() => setActiveTab('Nya')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Nya' && styles.activeTabText]}>Nya</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabButton}>
-          <Text style={styles.tabText}>Påbörjade</Text>
+        
+        {/* Flik: Påbörjade */}
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'Påbörjade' && styles.activeTabButton]}
+          onPress={() => setActiveTab('Påbörjade')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Påbörjade' && styles.activeTabText]}>Påbörjade</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabButton}>
-          <Text style={styles.tabText}>Avklarade</Text>
+        
+        {/* Flik: Avklarade */}
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'Avklarade' && styles.activeTabButton]}
+          onPress={() => setActiveTab('Avklarade')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Avklarade' && styles.activeTabText]}>Avklarade</Text>
         </TouchableOpacity>
       </View>
 
       {/* LISTA MED KARTOR */}
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
-        {mapsData.map((item) => (
+        {/* 4. Vi loopar igenom 'displayedMaps' istället för hela 'mapsData' */}
+        {displayedMaps.map((item) => (
           <TouchableOpacity 
             key={item.id} 
             style={styles.card}
             onPress={() => {
-              // 3. Navigera bara om man klickar på det fjärde kortet
-              if (item.id === '4') {
-                router.push('/map'); 
-              }
+              // Gör så att alla kartor går att klicka på för att testa informationsvyn
+              router.push('/map'); 
             }}
           >
             
