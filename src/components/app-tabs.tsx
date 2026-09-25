@@ -5,10 +5,8 @@ export default function AppTabs() {
   return (
     <Tabs
       screenOptions={{
-        // Döljer texten under ikonerna
         tabBarShowLabel: false, 
         
-        // Design
         tabBarStyle: {
           backgroundColor: '#d4d4d4',
           borderTopWidth: 0,
@@ -17,20 +15,18 @@ export default function AppTabs() {
           shadowOpacity: 0,
         },
 
-		// Centrerar innehållet (ikonen) i varje flik
         tabBarItemStyle: {
           justifyContent: 'center',
           alignItems: 'center',
         },
         
-        // Ikonfärger om de är aktiva eller ej
         tabBarActiveTintColor: '#000',
         tabBarInactiveTintColor: '#727272',
       }}
     >
-      {/* Första fliken (Kartan) */}
+      {/* Kartan */}
       <Tabs.Screen
-        name="mapTest"
+        name="index" 
         options={{
           headerShown: false,
           tabBarIcon: ({ color }) => (
@@ -39,9 +35,9 @@ export default function AppTabs() {
         }}
       />
 
-      {/* Andra fliken (Profilen/Utforska) */}
+      {/* Profilen */}
       <Tabs.Screen
-        name="index"
+        name="profile"
         options={{
           headerShown: false,
           tabBarIcon: ({ color }) => (
