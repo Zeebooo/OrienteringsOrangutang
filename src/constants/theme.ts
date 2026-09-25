@@ -1,10 +1,4 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import '@/global.css';
-
 import { Platform } from 'react-native';
 
 export const Colors = {
@@ -14,6 +8,17 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    // --- ERA APP-FÄRGER ---
+    textMain: '#333333',
+    textMuted: '#757575',
+    beigeBg: '#F5F4EE',
+    beigeBgDarker: '#E8E5D9', 
+    cardBg: '#FFFFFF',
+    primary: '#4A5D4E',       // Den mörkgröna knappen
+    accent: '#C87B4E',        // Den orangea/bruna accentfärgen
+    mapPlaceholder: '#D6E5D0',
+    border: '#E0E0E0',
+    danger: '#D32F2F',        // Logga ut-röd
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +26,17 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    // --- ERA APP-FÄRGER (Mörkt läge) ---
+    textMain: '#E0E0E0',
+    textMuted: '#A0A0A0',
+    beigeBg: '#1E1E1E',       
+    beigeBgDarker: '#121212',
+    cardBg: '#2C2C2C',
+    primary: '#5C7361',       
+    accent: '#D99166',
+    mapPlaceholder: '#3A4A3A',
+    border: '#444444',
+    danger: '#CF6679',
   },
 } as const;
 
@@ -28,13 +44,9 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {

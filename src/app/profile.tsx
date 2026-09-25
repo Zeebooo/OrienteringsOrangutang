@@ -2,6 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Colors } from '@/constants/theme';
+
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
@@ -9,30 +11,26 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         
-        {/* VITA TOPPEN MED KURVA */}
         <View style={styles.headerContainer}>
           <View style={styles.headerTopIcons}>
             <TouchableOpacity>
-              <Feather name="bell" size={24} color="black" />
+              <Feather name="bell" size={24} color={Colors.light.text} />
             </TouchableOpacity>
             <TouchableOpacity>
-              <Feather name="settings" size={24} color="black" />
+              <Feather name="settings" size={24} color={Colors.light.text} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* PROFILBILD (Överlappar den vita toppen) */}
         <View style={styles.profileImageWrapper}>
           <View style={styles.profileImageContainer}>
-            <Feather name="user" size={50} color="#757575" />
+            <Feather name="user" size={50} color={Colors.light.textMuted} />
           </View>
         </View>
 
-        {/* NAMN OCH NIVÅ */}
         <Text style={styles.nameText}>Rickard</Text>
         <Text style={styles.levelText}>Stigfinnare • Nivå 4</Text>
 
-        {/* STATISTIK-RAD */}
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>12</Text>
@@ -50,17 +48,16 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* SEKTION: MIN ORIENTERING */}
         <Text style={styles.sectionTitle}>Min orientering</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.menuRow}>
             <View style={styles.rowLeft}>
               <View style={styles.iconWrapper}>
-                <Feather name="map" size={18} color="#C87B4E" />
+                <Feather name="map" size={18} color={Colors.light.accent} />
               </View>
               <Text style={styles.menuText}>Min historik</Text>
             </View>
-            <Feather name="chevron-right" size={20} color="#A0A0A0" />
+            <Feather name="chevron-right" size={20} color={Colors.light.textMuted} />
           </TouchableOpacity>
           
           <View style={styles.separator} />
@@ -68,25 +65,24 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.menuRow}>
             <View style={styles.rowLeft}>
               <View style={styles.iconWrapper}>
-                <Feather name="award" size={18} color="#C87B4E" />
+                <Feather name="award" size={18} color={Colors.light.accent} />
               </View>
               <Text style={styles.menuText}>Utmärkelser & Badges</Text>
             </View>
-            <Feather name="chevron-right" size={20} color="#A0A0A0" />
+            <Feather name="chevron-right" size={20} color={Colors.light.textMuted} />
           </TouchableOpacity>
         </View>
 
-        {/* SEKTION: INSTÄLLNINGAR */}
         <Text style={styles.sectionTitle}>Inställningar</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.menuRow}>
             <View style={styles.rowLeft}>
               <View style={styles.iconWrapper}>
-                <Feather name="edit-3" size={18} color="#757575" />
+                <Feather name="edit-3" size={18} color={Colors.light.textMuted} />
               </View>
               <Text style={styles.menuText}>Ändra profilinformation</Text>
             </View>
-            <Feather name="chevron-right" size={20} color="#A0A0A0" />
+            <Feather name="chevron-right" size={20} color={Colors.light.textMuted} />
           </TouchableOpacity>
 
           <View style={styles.separator} />
@@ -94,7 +90,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.menuRow}>
             <View style={styles.rowLeft}>
               <View style={styles.iconWrapper}>
-                <Feather name="globe" size={18} color="#757575" />
+                <Feather name="globe" size={18} color={Colors.light.textMuted} />
               </View>
               <Text style={styles.menuText}>Språk</Text>
             </View>
@@ -102,7 +98,6 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* LOGGA UT KNAPP */}
         <TouchableOpacity style={styles.logoutButton}>
           <Text style={styles.logoutText}>Logga ut</Text>
         </TouchableOpacity>
@@ -115,17 +110,17 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF', // Håller området ovanför kurvan vitt
+    backgroundColor: Colors.light.cardBg, 
   },
   container: {
     flex: 1,
-    backgroundColor: '#F5F4EE', // Ljusbeige bakgrund för hela skärmen
+    backgroundColor: Colors.light.beigeBg, 
   },
   contentContainer: {
     paddingBottom: 40,
   },
   headerContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.cardBg,
     height: 140,
     borderBottomLeftRadius: width,
     borderBottomRightRadius: width,
@@ -149,31 +144,31 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginTop: -55, 
     zIndex: 10,
-    backgroundColor: '#F5F4EE',
+    backgroundColor: Colors.light.beigeBg,
     borderRadius: 70,
-    padding: 6, // Skapar en beige kant mellan cirkeln och den vita bakgrunden
+    padding: 6, 
   },
   profileImageContainer: {
     width: 100,
     height: 100,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.light.border,
     borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#C87B4E', // Er orangea färg som accent
+    borderColor: Colors.light.accent, 
   },
   nameText: {
     textAlign: 'center',
     fontSize: 24,
     fontWeight: 'bold',
     marginTop: 10,
-    color: '#333',
+    color: Colors.light.textMain,
   },
   levelText: {
     textAlign: 'center',
     fontSize: 14,
-    color: '#C87B4E',
+    color: Colors.light.accent,
     fontWeight: '600',
     marginTop: 4,
     marginBottom: 20,
@@ -181,7 +176,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.cardBg,
     marginHorizontal: 20,
     paddingVertical: 15,
     borderRadius: 12,
@@ -198,29 +193,29 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.light.border,
     marginVertical: 5,
   },
   statNumber: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: Colors.light.textMain,
   },
   statLabel: {
     fontSize: 12,
-    color: '#757575',
+    color: Colors.light.textMuted,
     marginTop: 4,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#757575',
+    color: Colors.light.textMuted,
     marginLeft: 25,
     marginBottom: 8,
     textTransform: 'uppercase',
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.cardBg,
     marginHorizontal: 20,
     borderRadius: 12,
     marginBottom: 25,
@@ -240,25 +235,25 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#F5F4EE',
+    backgroundColor: Colors.light.beigeBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   menuText: {
-    color: '#333',
+    color: Colors.light.textMain,
     fontSize: 16,
     fontWeight: '500',
   },
   actionText: {
-    color: '#757575',
+    color: Colors.light.textMuted,
     fontSize: 16,
     fontWeight: '500',
   },
   separator: {
     height: 1,
-    backgroundColor: '#F0F0F0',
-    marginLeft: 44, // Justerad så linjen börjar efter ikonen
+    backgroundColor: Colors.light.border,
+    marginLeft: 44, 
   },
   logoutButton: {
     marginHorizontal: 20,
@@ -268,7 +263,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoutText: {
-    color: '#D32F2F', // Röd färg för destruktiv handling
+    color: Colors.light.danger, 
     fontSize: 16,
     fontWeight: '600',
   },

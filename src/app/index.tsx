@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Colors } from '@/constants/theme';
 import { useProgress } from '@/context/ProgressContext';
 import { maps } from '@/data/maps';
 import type { OMap } from '@/types';
@@ -20,7 +21,6 @@ function getDifficultyInfo(difficulty: string) {
 export default function MapsScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Nya');
-  
   const { startedMaps, completedMaps } = useProgress();
 
   const uiMaps = maps.map((mapData: OMap) => {
@@ -48,14 +48,13 @@ export default function MapsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      
       <View style={styles.header}>
         <TouchableOpacity>
-          <Feather name="menu" size={28} color="black" />
+          <Feather name="menu" size={28} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Kartor</Text>
         <TouchableOpacity>
-          <Feather name="search" size={28} color="black" />
+          <Feather name="search" size={28} color={Colors.light.text} />
         </TouchableOpacity>
       </View>
 
@@ -87,11 +86,8 @@ export default function MapsScreen() {
           <TouchableOpacity 
             key={item.id} 
             style={styles.card}
-            onPress={() => {
-              router.push(`/map?id=${item.id}`); 
-            }}
+            onPress={() => router.push(`/map?id=${item.id}`)}
           >
-            
             <View style={styles.imagePlaceholder}>
               <Text style={styles.imageText}>Karta</Text>
             </View>
@@ -118,7 +114,7 @@ export default function MapsScreen() {
             </View>
 
             <View style={styles.chevronContainer}>
-              <Feather name="chevron-right" size={24} color="black" />
+              <Feather name="chevron-right" size={24} color={Colors.light.text} />
             </View>
           </TouchableOpacity>
         ))}
@@ -130,7 +126,7 @@ export default function MapsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F4EE', 
+    backgroundColor: Colors.light.beigeBg, 
   },
   header: {
     flexDirection: 'row',
@@ -143,12 +139,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '600',
+    color: Colors.light.text,
   },
   tabContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     borderBottomWidth: 1,
-    borderBottomColor: '#DCDCDC',
+    borderBottomColor: Colors.light.border,
     marginHorizontal: 20,
   },
   tabButton: {
@@ -157,14 +154,14 @@ const styles = StyleSheet.create({
   },
   activeTabButton: {
     borderBottomWidth: 2,
-    borderBottomColor: '#000',
+    borderBottomColor: Colors.light.text,
   },
   tabText: {
     fontSize: 16,
-    color: '#757575',
+    color: Colors.light.textMuted,
   },
   activeTabText: {
-    color: '#000',
+    color: Colors.light.text,
     fontWeight: '600',
   },
   listContainer: {
@@ -174,7 +171,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.cardBg,
     flexDirection: 'row',
     padding: 15,
     marginBottom: 15,
@@ -183,14 +180,14 @@ const styles = StyleSheet.create({
   imagePlaceholder: {
     width: 80,
     height: 80,
-    backgroundColor: '#D6E5D0', 
+    backgroundColor: Colors.light.mapPlaceholder, 
     borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
   },
   imageText: {
-    color: '#555',
+    color: Colors.light.textMuted,
     fontSize: 12,
   },
   infoContainer: {
@@ -201,10 +198,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+    color: Colors.light.textMain,
   },
   cardSubText: {
     fontSize: 12,
-    color: '#333',
+    color: Colors.light.textMain,
     marginBottom: 2,
   },
   difficultyContainer: {
@@ -223,12 +221,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   dotFilled: {
-    backgroundColor: '#C87B4E', 
+    backgroundColor: Colors.light.accent, 
   },
   dotEmpty: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#C87B4E',
+    borderColor: Colors.light.accent,
   },
   chevronContainer: {
     justifyContent: 'center',
