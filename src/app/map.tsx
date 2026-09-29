@@ -30,9 +30,6 @@ function getTerrainColor(kind: string): string {
 // Begränsar hur långt in/ut man kan zooma.
 // iOS (Apple Maps): kamerans avstånd till marken i meter – mindre = mer inzoomat.
 const CAMERA_ZOOM_RANGE = { minCenterCoordinateDistance: 1000, maxCenterCoordinateDistance: 6000 };
-// Android (Google Maps): zoomnivå 0–20 – högre = mer inzoomat.
-const MIN_ZOOM_LEVEL = 14; // längst ut
-const MAX_ZOOM_LEVEL = 19; // längst in
 
 function renderTerrainFeature(feature: any, index: number) {
 	const { kind, shape, coordinates } = feature;
@@ -119,8 +116,6 @@ export default function MapDetailScreen() {
 				style={StyleSheet.absoluteFill}
 				initialRegion={bboxToRegion(map.bbox)}
 				cameraZoomRange={CAMERA_ZOOM_RANGE}
-				minZoomLevel={MIN_ZOOM_LEVEL}
-				maxZoomLevel={MAX_ZOOM_LEVEL}
 				showsUserLocation={true}
 				userInterfaceStyle="light"
 			>
