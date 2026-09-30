@@ -1,3 +1,4 @@
+import { AuthProvider } from '@/context/AuthContext';
 import { ProgressProvider } from '@/context/ProgressContext';
 import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
@@ -41,51 +42,53 @@ function TabIcon({ name, label, focused }: { name: any; label: string; focused: 
 
 export default function RootLayout() {
   return (
-    <ProgressProvider>
-      <Tabs
-        screenOptions={{
-          tabBarShowLabel: false, 
-          headerShown: false,
-          tabBarStyle: {
-            backgroundColor: Colors.light.beigeBgDarker,
-            borderTopWidth: 0,
-            // Sätt en stabil höjd beroende på system
-            height: Platform.OS === 'ios' ? 85 : 70, 
-            // HÄR ÄR MAGIN: Tvinga bort den osynliga botten-paddingen
-            paddingBottom: Platform.OS === 'ios' ? 15 : 0,
-            paddingTop: 10,
-          },
-        }}
-      >
-        {/* Flik 1: Kartlistan (Huvudmenyn) */}
-        <Tabs.Screen
-          name="index"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon name="map" label="Kartor" focused={focused} />
-            ),
+    <AuthProvider>
+      <ProgressProvider>
+        <Tabs
+          screenOptions={{
+            tabBarShowLabel: false,
+            headerShown: false,
+            tabBarStyle: {
+              backgroundColor: Colors.light.beigeBgDarker,
+              borderTopWidth: 0,
+              // Sätt en stabil höjd beroende på system
+              height: Platform.OS === 'ios' ? 85 : 70,
+              // HÄR ÄR MAGIN: Tvinga bort den osynliga botten-paddingen
+              paddingBottom: Platform.OS === 'ios' ? 15 : 0,
+              paddingTop: 10,
+            },
           }}
-        />
+        >
+          {/* Flik 1: Kartlistan (Huvudmenyn) */}
+          <Tabs.Screen
+            name="index"
+            options={{
+              tabBarIcon: ({ focused }) => (
+                <TabIcon name="map" label="Kartor" focused={focused} />
+              ),
+            }}
+          />
 
-        {/* Flik 2: Profilen */}
-        <Tabs.Screen
-          name="profile"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon name="user" label="Profil" focused={focused} />
-            ),
-          }}
-        />
+          {/* Flik 2: Profilen */}
+          <Tabs.Screen
+            name="profile"
+            options={{
+              tabBarIcon: ({ focused }) => (
+                <TabIcon name="user" label="Profil" focused={focused} />
+              ),
+            }}
+          />
 
-        {/* Dold vy: Detaljkartan */}
-        <Tabs.Screen
-          name="map"
-          options={{
-            href: null, 
-            tabBarStyle: { display: 'none' }, 
-          }}
-        />
-      </Tabs>
-    </ProgressProvider>
+          {/* Dold vy: Detaljkartan */}
+          <Tabs.Screen
+            name="map"
+            options={{
+              href: null,
+              tabBarStyle: { display: 'none' },
+            }}
+          />
+        </Tabs>
+      </ProgressProvider>
+    </AuthProvider>
   );
 }
