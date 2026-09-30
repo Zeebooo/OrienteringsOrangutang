@@ -7,9 +7,8 @@ import { Colors } from '@/constants/theme';
 
 function TabIcon({ name, label, focused }: { name: any; label: string; focused: boolean }) {
   return (
-    // height: '100%' gör att den tar all tillgänglig plats utan att klippas
     <View style={{ alignItems: 'center', justifyContent: 'center', width: 80, height: '100%' }}>
-      {/* Ikon */}
+      {}
       <Feather
         name={name}
         size={24}
@@ -28,7 +27,6 @@ function TabIcon({ name, label, focused }: { name: any; label: string; focused: 
       >
         {label}
       </Text>
-      {/* Den orangea linjen */}
       <View
         style={{
           height: 3,
