@@ -2,7 +2,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { ProgressProvider } from '@/context/ProgressContext';
 import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 
@@ -51,26 +51,22 @@ export default function RootLayout() {
             tabBarShowLabel: false,
             headerShown: false,
             tabBarStyle: {
-              backgroundColor: '#d4d4d4',
+              backgroundColor: Colors.light.beigeBgDarker,
               borderTopWidth: 0,
-              height: 70,
-              elevation: 0,
-              shadowOpacity: 0,
+              // Sätt en stabil höjd beroende på system
+              height: Platform.OS === 'ios' ? 85 : 70,
+              // HÄR ÄR MAGIN: Tvinga bort den osynliga botten-paddingen
+              paddingBottom: Platform.OS === 'ios' ? 15 : 0,
+              paddingTop: 10,
             },
-            tabBarItemStyle: {
-              justifyContent: 'center',
-              alignItems: 'center',
-            },
-            tabBarActiveTintColor: '#000',
-            tabBarInactiveTintColor: '#727272',
           }}
         >
           {/* Flik 1: Kartlistan (Huvudmenyn) */}
           <Tabs.Screen
             name="index"
             options={{
-              tabBarIcon: ({ color }) => (
-                <Feather name="map" size={28} color={color} />
+              tabBarIcon: ({ focused }) => (
+                <TabIcon name="map" label="Kartor" focused={focused} />
               ),
             }}
           />
@@ -79,18 +75,18 @@ export default function RootLayout() {
           <Tabs.Screen
             name="profile"
             options={{
-              tabBarIcon: ({ color }) => (
-                <Feather name="user" size={28} color={color} />
+              tabBarIcon: ({ focused }) => (
+                <TabIcon name="user" label="Profil" focused={focused} />
               ),
             }}
           />
 
-          {/* Dold vy: Detaljkartan (Öppnas bara när man klickar i listan) */}
+          {/* Dold vy: Detaljkartan */}
           <Tabs.Screen
             name="map"
             options={{
-              href: null, // Döljer ikonen från bottenmenyn
-              tabBarStyle: { display: 'none' }, // Gömmer själva menyraden helt när man är på denna skärm
+              href: null,
+              tabBarStyle: { display: 'none' },
             }}
           />
         </Tabs>
