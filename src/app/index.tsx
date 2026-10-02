@@ -1,6 +1,7 @@
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { fetchMaps, MapWithState } from '@/services/mapsDAL';
+import { fetchProfile, updateProfile } from '@/services/profilesDAL';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -16,15 +17,18 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-// Importera funktionerna från din kompis fil
-import { fetchProfile, updateProfile } from '@/services/profilesDAL';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+type TabType = 'Nya' | 'Påbörjade' | 'Avklarade';
 
 export default function MapListScreen() {
   const router = useRouter();
   
   const [maps, setMaps] = useState<MapWithState[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('Nya');
   
+  // Namn-modal states
   const [showNameModal, setShowNameModal] = useState(false);
   const [userNameInput, setUserNameInput] = useState('');
   const [savingName, setSavingName] = useState(false);
@@ -33,15 +37,11 @@ export default function MapListScreen() {
     async function loadData() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        
         if (user) {
-          // Använd DAL-funktionen för att hämta profilen
           const profile = await fetchProfile(user.id);
-
           if (!profile?.name) {
             setShowNameModal(true);
           }
-
           const fetchedMaps = await fetchMaps(user.id);
           setMaps(fetchedMaps);
         }
@@ -51,7 +51,6 @@ export default function MapListScreen() {
         setLoading(false);
       }
     }
-
     loadData();
   }, []);
 
@@ -60,11 +59,9 @@ export default function MapListScreen() {
     if (trimmedName.length < 1 || trimmedName.length > 25) return; 
 
     setSavingName(true);
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Använd DAL-funktion för att uppdatera
         await updateProfile(user.id, trimmedName);
         setShowNameModal(false);
       }
@@ -75,133 +72,308 @@ export default function MapListScreen() {
     }
   };
 
-  if (loading) {
+  // Filtrera kartorna baserat på vald flik
+  const filteredMaps = maps.filter(map => {
+    if (activeTab === 'Nya') return map.state === 'not_started';
+    if (activeTab === 'Påbörjade') return map.state === 'started';
+    if (activeTab === 'Avklarade') return map.state === 'completed';
+    return true;
+  });
+
+  // Hjälpfunktion för att översätta och rita svårighetsgraden som i Figma
+  const renderDifficulty = (difficulty: string) => {
+    let diffText = 'Okänd';
+    let filledDots = 1;
+
+    switch(difficulty.toLowerCase()) {
+      case 'easy': diffText = 'Lätt'; filledDots = 1; break;
+      case 'medium': diffText = 'Medelsvår'; filledDots = 2; break;
+      case 'hard': diffText = 'Svår'; filledDots = 3; break;
+    }
+
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={Colors.light.accent} />
-        <Text style={styles.loadingText}>Laddar...</Text>
+      <View style={styles.difficultyContainer}>
+        <Text style={styles.cardInfoText}>{diffText}</Text>
+        <View style={styles.dotsContainer}>
+          {[1, 2, 3].map((dot) => (
+            <View 
+              key={dot} 
+              style={[
+                styles.dot, 
+                dot <= filledDots ? styles.dotFilled : styles.dotEmpty
+              ]} 
+            />
+          ))}
+        </View>
       </View>
     );
-  }
+  };
 
   const renderMapItem = ({ item }: { item: MapWithState }) => {
-    let statusIcon = 'circle';
-    let statusColor: string = Colors.light.textMuted;
-    
-    if (item.state === 'completed') {
-      statusIcon = 'check-circle';
-      statusColor = Colors.light.accent;
-    } else if (item.state === 'started') {
-      statusIcon = 'play-circle';
-      statusColor = Colors.light.primary;
-    }
+    // Formatera avstånd som "5,2 km"
+    const distanceDisplay = item.distanceM 
+      ? `${(item.distanceM / 1000).toFixed(1).replace('.', ',')} km` 
+      : 'Okänd längd';
 
     return (
       <TouchableOpacity 
         style={styles.card} 
         onPress={() => router.push(`/map?id=${item.id}`)}
       >
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{item.name}</Text>
-          <Feather name={statusIcon as any} size={24} color={statusColor} />
-        </View>
-        <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
-        
-        <View style={styles.tagsContainer}>
-          <View style={styles.tag}>
-            <Feather name="map" size={12} color={Colors.light.textMuted} style={styles.tagIcon} />
-            <Text style={styles.tagText}>
-              {item.distanceM ? `${(item.distanceM / 1000).toFixed(1)} km` : 'Okänd'}
-            </Text>
+        <View style={styles.cardContent}>
+          {/* Platshållare för kartbilden (eftersom vi saknar bilder i DB än) */}
+          <View style={styles.imagePlaceholder}>
+            <Feather name="map" size={24} color={Colors.light.accent} />
           </View>
-          <View style={styles.tag}>
-            <Feather name="bar-chart-2" size={12} color={Colors.light.textMuted} style={styles.tagIcon} />
-            <Text style={styles.tagText}>{item.difficulty}</Text>
+
+          <View style={styles.cardTextContainer}>
+            <Text style={styles.cardTitle}>{item.name}</Text>
+            <Text style={styles.cardInfoText} numberOfLines={1}>{item.description}</Text>
+            <Text style={styles.cardInfoText}>{distanceDisplay}</Text>
+            {renderDifficulty(item.difficulty)}
           </View>
+          
+          <Feather name="chevron-right" size={24} color={Colors.light.textMain} style={styles.chevronIcon} />
         </View>
       </TouchableOpacity>
     );
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={Colors.light.accent} />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>Välj karta</Text>
-      
-      {maps.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.loadingText}>Inga kartor hittades.</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.headerIcon}>
+            <Feather name="menu" size={28} color={Colors.light.textMain} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Kartor</Text>
+          <TouchableOpacity style={styles.headerIcon}>
+            <Feather name="search" size={28} color={Colors.light.textMain} />
+          </TouchableOpacity>
         </View>
-      ) : (
-        <FlatList
-          data={maps}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMapItem}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
 
-      <Modal
-        visible={showNameModal}
-        animationType="fade"
-        transparent={true}
-      >
-        <KeyboardAvoidingView 
-          style={styles.modalOverlay} 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Välkommen!</Text>
-            <Text style={styles.modalDesc}>Vad vill du kallas i appen?</Text>
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Skriv ditt namn här..."
-              placeholderTextColor={Colors.light.textMuted}
-              value={userNameInput}
-              onChangeText={setUserNameInput}
-              autoFocus={true}
-              maxLength={25} // Matchar valideringen i profilesDAL.tsx
-            />
-
+        {/* Flikar (Tabs) */}
+        <View style={styles.tabContainer}>
+          {(['Nya', 'Påbörjade', 'Avklarade'] as TabType[]).map((tab) => (
             <TouchableOpacity 
-              style={[styles.saveButton, !userNameInput.trim() && styles.saveButtonDisabled]} 
-              onPress={handleSaveName}
-              disabled={!userNameInput.trim() || savingName}
+              key={tab} 
+              style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
+              onPress={() => setActiveTab(tab)}
             >
-              {savingName ? (
-                <ActivityIndicator color={Colors.light.background} />
-              ) : (
-                <Text style={styles.saveButtonText}>Spara och fortsätt</Text>
-              )}
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab}
+              </Text>
             </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          ))}
+        </View>
 
-    </View>
+        {/* Lista */}
+        {filteredMaps.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Inga kartor här än.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredMaps}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMapItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
+        {/* Namn Onboarding Modal (samma som tidigare) */}
+        <Modal visible={showNameModal} animationType="fade" transparent={true}>
+          <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Välkommen!</Text>
+              <Text style={styles.modalDesc}>Vad vill du kallas i appen?</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Skriv ditt namn här..."
+                placeholderTextColor={Colors.light.textMuted}
+                value={userNameInput}
+                onChangeText={setUserNameInput}
+                autoFocus={true}
+                maxLength={25}
+              />
+              <TouchableOpacity 
+                style={[styles.saveButton, !userNameInput.trim() && styles.saveButtonDisabled]} 
+                onPress={handleSaveName}
+                disabled={!userNameInput.trim() || savingName}
+              >
+                {savingName ? <ActivityIndicator color={Colors.light.background} /> : <Text style={styles.saveButtonText}>Spara och fortsätt</Text>}
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.beigeBgDarker },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, color: Colors.light.textMuted, fontSize: 16 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: Colors.light.textMain, marginTop: 60, marginBottom: 20, paddingHorizontal: 20 },
-  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  card: { backgroundColor: Colors.light.cardBg, borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  cardTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.light.textMain },
-  cardDesc: { fontSize: 14, color: Colors.light.textMuted, marginBottom: 16 },
-  tagsContainer: { flexDirection: 'row', gap: 12 },
-  tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.light.beigeBg, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: Colors.light.border },
-  tagIcon: { marginRight: 4 },
-  tagText: { fontSize: 12, fontWeight: '600', color: Colors.light.textMain },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F5F5EC', // Ljusbeige bakgrund från designen
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5EC',
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  headerIcon: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+
+  // Flikar
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#D3D3D3', // Tunn grå linje under hela flikraden
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  tabButtonActive: {
+    borderBottomWidth: 3,
+    borderBottomColor: '#000', // Svart indikator under aktiv flik
+  },
+  tabText: {
+    fontSize: 16,
+    color: '#888',
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#000',
+    fontWeight: 'bold',
+  },
+
+  // Lista & Kort
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    marginBottom: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  imagePlaceholder: {
+    width: 70,
+    height: 70,
+    backgroundColor: '#E5E8DD', // Grönaktig platshållarfärg
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  cardTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 2,
+  },
+  cardInfoText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  chevronIcon: {
+    marginLeft: 10,
+  },
+
+  // Svårighetsgrad (Prickar)
+  difficultyContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    marginLeft: 6,
+    gap: 3,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#D38E5A', // Orangeaktig kantfärg
+  },
+  dotFilled: {
+    backgroundColor: '#D38E5A', // Orangeaktig fyllnad
+  },
+  dotEmpty: {
+    backgroundColor: 'transparent',
+  },
+
+  // Empty state
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#888',
+    fontStyle: 'italic',
+  },
+
+  // Modal (oförändrad)
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { backgroundColor: Colors.light.cardBg, width: '100%', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 10 },
-  modalTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.light.textMain, marginBottom: 8, textAlign: 'center' },
-  modalDesc: { fontSize: 16, color: Colors.light.textMuted, marginBottom: 24, textAlign: 'center' },
-  input: { backgroundColor: Colors.light.beigeBg, borderWidth: 1, borderColor: Colors.light.border, borderRadius: 12, padding: 16, fontSize: 16, color: Colors.light.textMain, marginBottom: 24 },
+  modalContent: { backgroundColor: '#FFF', width: '100%', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 10 },
+  modalTitle: { fontSize: 24, fontWeight: 'bold', color: '#000', marginBottom: 8, textAlign: 'center' },
+  modalDesc: { fontSize: 16, color: '#666', marginBottom: 24, textAlign: 'center' },
+  input: { backgroundColor: '#F5F5EC', borderWidth: 1, borderColor: '#DDD', borderRadius: 12, padding: 16, fontSize: 16, color: '#000', marginBottom: 24 },
   saveButton: { backgroundColor: Colors.light.primary, padding: 16, borderRadius: 12, alignItems: 'center' },
-  saveButtonDisabled: { backgroundColor: Colors.light.textMuted },
-  saveButtonText: { color: Colors.light.background, fontSize: 16, fontWeight: 'bold' },
+  saveButtonDisabled: { backgroundColor: '#CCC' },
+  saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
 });
