@@ -31,7 +31,7 @@ export type Terrain = {
 	features: TerrainFeature[];
 };
 
-export type Difficulty = 'Easy' | 'Medium' | 'Hard';
+export type Difficulty = 'easy' | 'medium' | 'hard';
 
 /** En karta som appen använder den. Terrängen följer bara med när kartan öppnas. */
 export type OMap = {
