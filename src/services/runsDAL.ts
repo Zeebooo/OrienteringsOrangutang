@@ -1,11 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import type { Coordinate } from '@/types';
 
-// ─── Typer ────────────────────────────────────────────────────────────────
+export type RunState = 'started' | 'completed';
 
-export type RunState = 'started' | 'completed' | 'abandoned';
-
-/** En rad i tabellen `runs`, med kolumnnamnen precis som i databasen. */
 type RunRow = {
     id: string;
     user_id: string;
@@ -13,11 +10,8 @@ type RunRow = {
     elapsed_ms: number;
     visited_controls: Coordinate[];
     completed: boolean;
-    state: RunState;
-    created_at: string;
 };
 
-/** En run så som appen ser det. */
 export type RunSummary = {
     id: string;
     userId: string;
@@ -26,13 +20,10 @@ export type RunSummary = {
     visitedControls: Coordinate[];
     isCompleted: boolean;
     state: RunState;
-    createdAt: Date;
 };
 
-// Kolumnerna i `runs`
-const RUN_COLUMNS = 'id, user_id, map_id, elapsed_ms, visited_controls, completed, state, created_at';
-
-// ─── Omvandling databas → app ─────────────────────────────────────────────
+// Vi hämtar bara de exakta kolumnerna som syns i din skiss
+const RUN_COLUMNS = 'id, user_id, map_id, elapsed_ms, visited_controls, completed';
 
 function toRun(row: RunRow): RunSummary {
     return {
@@ -42,50 +33,39 @@ function toRun(row: RunRow): RunSummary {
         elapsedMs: row.elapsed_ms,
         visitedControls: row.visited_controls || [],
         isCompleted: row.completed,
-        state: row.state,
-        createdAt: new Date(row.created_at),
+        state: row.completed ? 'completed' : 'started', 
     };
 }
 
-// ─── Läsa ─────────────────────────────────────────────────────────────────
-
-/** Hämtar alla runs för en specifik användare. Bra för profilsidan/historiken. */
 export async function fetchUserRuns(userId: string): Promise<RunSummary[]> {
     const { data, error } = await supabase
         .from('runs')
         .select(RUN_COLUMNS)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false }); // Nyast först
+        .eq('user_id', userId);
 
     if (error) throw error;
     return data.map((row) => toRun(row as RunRow));
 }
 
-/** Hämtar en specifik, aktiv run för en användare och en karta. */
 export async function fetchActiveRun(userId: string, mapId: string): Promise<RunSummary | null> {
     const { data, error } = await supabase
         .from('runs')
         .select(RUN_COLUMNS)
         .eq('user_id', userId)
         .eq('map_id', mapId)
-        .eq('state', 'started')
-        .maybeSingle(); // Kan finnas 0 eller 1 aktivt lopp
+        .eq('completed', false)
+        .maybeSingle(); 
 
     if (error) throw error;
     return data ? toRun(data as RunRow) : null;
 }
 
-
-// ─── Skriva ───────────────────────────────────────────────────────────────
-
-/** Startar en ny run för en användare på en specifik karta. */
 export async function createRun(userId: string, mapId: string): Promise<RunSummary> {
     const { data, error } = await supabase
         .from('runs')
         .insert({
             user_id: userId,
             map_id: mapId,
-            state: 'started',
             completed: false,
             elapsed_ms: 0,
             visited_controls: []
@@ -97,10 +77,6 @@ export async function createRun(userId: string, mapId: string): Promise<RunSumma
     return toRun(data as RunRow);
 }
 
-/** 
- * Uppdaterar listan med besökta kontroller. 
- * Används när GPS:en registrerar att användaren har nått en kontroll. 
- */
 export async function updateVisitedControls(runId: string, visitedControls: Coordinate[]): Promise<RunSummary> {
     const { data, error } = await supabase
         .from('runs')
@@ -113,12 +89,10 @@ export async function updateVisitedControls(runId: string, visitedControls: Coor
     return toRun(data as RunRow);
 }
 
-/** Avslutar en run och sparar den slutgiltiga tiden. */
 export async function completeRun(runId: string, elapsedMs: number, finalControls: Coordinate[]): Promise<RunSummary> {
     const { data, error } = await supabase
         .from('runs')
         .update({
-            state: 'completed',
             completed: true,
             elapsed_ms: elapsedMs,
             visited_controls: finalControls
@@ -131,18 +105,11 @@ export async function completeRun(runId: string, elapsedMs: number, finalControl
     return toRun(data as RunRow);
 }
 
-/** Avbryter en run i förtid (om man t.ex. ger upp). */
-export async function abandonRun(runId: string): Promise<RunSummary> {
-    const { data, error } = await supabase
+export async function abandonRun(runId: string): Promise<void> {
+    const { error } = await supabase
         .from('runs')
-        .update({
-            state: 'abandoned',
-            completed: false
-        })
-        .eq('id', runId)
-        .select(RUN_COLUMNS)
-        .single();
+        .delete()
+        .eq('id', runId);
 
     if (error) throw error;
-    return toRun(data as RunRow);
 }
