@@ -49,7 +49,7 @@ function toRun(row: RunRow): RunSummary {
 
 // ─── Läsa ─────────────────────────────────────────────────────────────────
 
-/** Hämtar alla lopp för en specifik användare. Bra för profilsidan/historiken. */
+/** Hämtar alla runs för en specifik användare. Bra för profilsidan/historiken. */
 export async function fetchUserRuns(userId: string): Promise<RunSummary[]> {
     const { data, error } = await supabase
         .from('runs')
@@ -61,7 +61,7 @@ export async function fetchUserRuns(userId: string): Promise<RunSummary[]> {
     return data.map((row) => toRun(row as RunRow));
 }
 
-/** Hämtar ett specifikt, aktivt lopp för en användare och en karta. */
+/** Hämtar en specifik, aktiv run för en användare och en karta. */
 export async function fetchActiveRun(userId: string, mapId: string): Promise<RunSummary | null> {
     const { data, error } = await supabase
         .from('runs')
@@ -78,7 +78,7 @@ export async function fetchActiveRun(userId: string, mapId: string): Promise<Run
 
 // ─── Skriva ───────────────────────────────────────────────────────────────
 
-/** Startar ett nytt lopp för en användare på en specifik karta. */
+/** Startar en ny run för en användare på en specifik karta. */
 export async function createRun(userId: string, mapId: string): Promise<RunSummary> {
     const { data, error } = await supabase
         .from('runs')
@@ -113,7 +113,7 @@ export async function updateVisitedControls(runId: string, visitedControls: Coor
     return toRun(data as RunRow);
 }
 
-/** Avslutar loppet och sparar den slutgiltiga tiden. */
+/** Avslutar en run och sparar den slutgiltiga tiden. */
 export async function completeRun(runId: string, elapsedMs: number, finalControls: Coordinate[]): Promise<RunSummary> {
     const { data, error } = await supabase
         .from('runs')
@@ -131,7 +131,7 @@ export async function completeRun(runId: string, elapsedMs: number, finalControl
     return toRun(data as RunRow);
 }
 
-/** Avbryter ett lopp i förtid (om man t.ex. ger upp). */
+/** Avbryter en run i förtid (om man t.ex. ger upp). */
 export async function abandonRun(runId: string): Promise<RunSummary> {
     const { data, error } = await supabase
         .from('runs')
