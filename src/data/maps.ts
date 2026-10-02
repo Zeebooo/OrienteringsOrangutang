@@ -25,7 +25,7 @@ export const maps: OMap[] = [
 		id: 'campus',
 		name: 'Campus',
 		description: 'Kort bana i campusmiljö',
-		difficulty: 'Easy',
+		difficulty: 'easy',
 		controls: [
 			{ id: 'c1', latitude: 63.821577213387, longitude: 20.310382985291987 },
 		], // TODO: lägg till kontroller på campus
@@ -35,7 +35,7 @@ export const maps: OMap[] = [
 		id: 'berghem',
 		name: 'berghem',
 		description: 'Kort bana i berghem',
-		difficulty: 'Easy',
+		difficulty: 'easy',
 		controls: [],
 		terrain: berghemTerrain as Terrain,
 	}),
