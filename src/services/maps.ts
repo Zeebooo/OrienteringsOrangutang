@@ -1,10 +1,8 @@
 import { supabase } from '@/lib/supabase';
-import type { Control, Coordinate, Terrain } from '@/types';
-import { pathLengthInMeters } from '@/utilities/geo';
+import type { Control, Difficulty, OMap, Terrain } from '@/types';
+import { bboxCenter, courseLengthInMeters } from '@/utilities/geo';
 
 // ─── Typer ────────────────────────────────────────────────────────────────
-
-type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
 /** En rad i tabellen `maps`, med kolumnnamnen som i databasen. Används bara i den här filen. */
 type MapRow = {
@@ -21,22 +19,10 @@ type MapRow = {
 
 export type MapState = 'not_started' | 'started' | 'completed';
 
-/** En karta som resten av appen ser den – utan terräng. */
-export type MapSummary = {
-	id: string;
-	ownerId: string;
-	name: string;
-	description: string;
-	difficulty: Difficulty;
-	controls: Control[];
-	distanceM: number | null;
-	center: Coordinate;
-};
+export type MapWithState = OMap & { state: MapState };
 
-export type MapWithState = MapSummary & { state: MapState };
-
-/** En karta tillsammans med sin terräng, för kartskärmen. */
-export type MapWithTerrain = MapSummary & { terrain: Terrain };
+/** En karta där terrängen garanterat finns, för kartskärmen. */
+export type MapWithTerrain = OMap & { terrain: Terrain };
 
 /** Det man skickar in när man skapar en karta. Allt annat räknas ut. */
 export type NewMap = {
@@ -52,7 +38,7 @@ const MAP_COLUMNS = 'id, owner_id, name, description, difficulty, controls, dist
 
 // ─── Omvandling databas → app ─────────────────────────────────────────────
 
-function toMap(row: MapRow): MapSummary {
+function toMap(row: MapRow): OMap {
 	return {
 		id: row.id,
 		ownerId: row.owner_id,
@@ -89,7 +75,7 @@ export async function fetchMaps(userId: string): Promise<MapWithState[]> {
 }
 
 /** En enskild karta utan terräng, t.ex. för ett infokort. */
-export async function fetchMapById(mapId: string): Promise<MapSummary | null> {
+export async function fetchMapById(mapId: string): Promise<OMap | null> {
 	const { data, error } = await supabase
 		.from('maps')
 		.select(MAP_COLUMNS)
@@ -135,8 +121,8 @@ export async function fetchMapWithTerrain(mapId: string): Promise<MapWithTerrain
 // ─── Skriva ───────────────────────────────────────────────────────────────
 
 /** Skapar en karta: först raden i `maps`, sedan terrängen i `map_terrain`. */
-export async function createMap(input: NewMap): Promise<MapSummary> {
-	const { south, west, north, east } = input.terrain.bbox;
+export async function createMap(input: NewMap): Promise<OMap> {
+	const center = bboxCenter(input.terrain.bbox);
 
 	const { data, error } = await supabase
 		.from('maps')
@@ -146,9 +132,9 @@ export async function createMap(input: NewMap): Promise<MapSummary> {
 			difficulty: input.difficulty,
 			controls: input.controls,
 			// Räknas ut här och skrivs aldrig för hand, så de kan inte bli fel
-			center_lat: (south + north) / 2,
-			center_lng: (west + east) / 2,
-			distance: input.controls.length >= 2 ? pathLengthInMeters(input.controls) : null,
+			center_lat: center.latitude,
+			center_lng: center.longitude,
+			distance: courseLengthInMeters(input.controls),
 			// owner_id fylls i av databasen (default auth.uid())
 		})
 		.select(MAP_COLUMNS)

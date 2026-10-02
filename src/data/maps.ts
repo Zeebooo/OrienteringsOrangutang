@@ -1,29 +1,22 @@
-import type { Control, Coordinate, OMap, Terrain } from '@/types';
+import type { OMap, Terrain } from '@/types';
+import { bboxCenter, courseLengthInMeters } from '@/utilities/geo';
 import berghemTerrain from './terrain/berghem.json';
 import campusTerrain from './terrain/campus.json';
 
-// Det man skriver för hand: bbox hämtas från terrängen, start/finish är valfria.
-type MapInput = Omit<OMap, 'bbox' | 'start' | 'finish' | 'terrain'> & {
+// Lokala kartor som ännu inte ligger i databasen har ingen skapare
+const LOCAL_OWNER = 'local';
+
+// Det man skriver för hand. Mittpunkt och längd räknas ut från terrängen och kontrollerna.
+type MapInput = Omit<OMap, 'ownerId' | 'center' | 'distanceM' | 'terrain'> & {
 	terrain: Terrain;
-	start?: Coordinate;
-	finish?: Coordinate;
 };
 
-function centerOf(terrain: Terrain): Coordinate {
-	const { south, west, north, east } = terrain.bbox;
-	return { latitude: (south + north) / 2, longitude: (west + east) / 2 };
-}
-
 function defineMap(input: MapInput): OMap {
-	const first: Control | undefined = input.controls[0];
-	const last: Control | undefined = input.controls[input.controls.length - 1];
-
 	return {
 		...input,
-		bbox: input.terrain.bbox,
-		// Eget värde → första/sista kontrollen → mitten av kartan
-		start: input.start ?? first ?? centerOf(input.terrain),
-		finish: input.finish ?? last ?? centerOf(input.terrain),
+		ownerId: LOCAL_OWNER,
+		center: bboxCenter(input.terrain.bbox),
+		distanceM: courseLengthInMeters(input.controls),
 	};
 }
 
@@ -38,12 +31,12 @@ export const maps: OMap[] = [
 		], // TODO: lägg till kontroller på campus
 		terrain: campusTerrain as Terrain,
 	}),
-		defineMap({
+	defineMap({
 		id: 'berghem',
 		name: 'berghem',
 		description: 'Kort bana i berghem',
 		difficulty: 'Easy',
-		controls: [], 
+		controls: [],
 		terrain: berghemTerrain as Terrain,
 	}),
 	// nästa karta...

@@ -1,4 +1,4 @@
-import type { Coordinate } from '@/types';
+import type { BoundingBox, Control, Coordinate } from '@/types';
 
 const EARTH_RADIUS_M = 6_371_000;
 const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -20,4 +20,14 @@ export function pathLengthInMeters(points: Coordinate[]): number {
 		total += distanceInMeters(points[i - 1], points[i]);
 	}
 	return total;
+}
+
+/** Banans längd i meter, eller null om den har färre än två kontroller. */
+export function courseLengthInMeters(controls: Control[]): number | null {
+	return controls.length >= 2 ? pathLengthInMeters(controls) : null;
+}
+
+/** Mittpunkten i en bounding box. */
+export function bboxCenter({ south, west, north, east }: BoundingBox): Coordinate {
+	return { latitude: (south + north) / 2, longitude: (west + east) / 2 };
 }

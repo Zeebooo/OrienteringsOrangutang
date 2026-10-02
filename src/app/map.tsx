@@ -114,7 +114,7 @@ export default function MapDetailScreen() {
 
 			<MapView
 				style={StyleSheet.absoluteFill}
-				initialRegion={bboxToRegion(map.bbox)}
+				initialRegion={bboxToRegion(map.terrain.bbox)}
 				cameraZoomRange={CAMERA_ZOOM_RANGE}
 				showsUserLocation={true}
 				userInterfaceStyle="light"
