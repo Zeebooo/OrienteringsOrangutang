@@ -1,236 +1,207 @@
+import { Colors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
+import { fetchMaps, MapWithState } from '@/services/mapsDAL';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+// Importera funktionerna från din kompis fil
+import { fetchProfile, updateProfile } from '@/services/profilesDAL';
 
-import { Colors } from '@/constants/theme';
-import { useProgress } from '@/context/ProgressContext';
-import { maps } from '@/data/maps';
-import type { OMap } from '@/types';
-
-function getDifficultyInfo(difficulty: string) {
-  switch (difficulty) {
-    case 'Easy': return { text: 'Lätt', level: 1 };
-    case 'Medium': return { text: 'Medelsvår', level: 2 };
-    case 'Hard': return { text: 'Svår', level: 3 };
-    default: return { text: 'Okänd', level: 0 };
-  }
-}
-
-export default function MapsScreen() {
+export default function MapListScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('Nya');
-  const { startedMaps, completedMaps } = useProgress();
+  
+  const [maps, setMaps] = useState<MapWithState[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [userNameInput, setUserNameInput] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
-  const uiMaps = maps.map((mapData: OMap) => {
-    const diffInfo = getDifficultyInfo(mapData.difficulty);
-    
-    let currentStatus = 'Nya';
-    if (completedMaps.includes(mapData.id)) {
-      currentStatus = 'Avklarade';
-    } else if (startedMaps.includes(mapData.id)) {
-      currentStatus = 'Påbörjade';
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Använd DAL-funktionen för att hämta profilen
+          const profile = await fetchProfile(user.id);
+
+          if (!profile?.name) {
+            setShowNameModal(true);
+          }
+
+          const fetchedMaps = await fetchMaps(user.id);
+          setMaps(fetchedMaps);
+        }
+      } catch (error) {
+        console.error('Fel vid laddning av data:', error);
+      } finally {
+        setLoading(false);
+      }
     }
-    
-    return {
-      id: mapData.id,
-      title: mapData.name,
-      location: 'Umeå', 
-      distance: '4,0 km', 
-      difficulty: diffInfo.text,
-      diffLevel: diffInfo.level,
-      status: currentStatus, 
-    };
-  });
 
-  const displayedMaps = uiMaps.filter(item => item.status === activeTab);
+    loadData();
+  }, []);
+
+  const handleSaveName = async () => {
+    const trimmedName = userNameInput.trim();
+    if (trimmedName.length < 1 || trimmedName.length > 25) return; 
+
+    setSavingName(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Använd DAL-funktion för att uppdatera
+        await updateProfile(user.id, trimmedName);
+        setShowNameModal(false);
+      }
+    } catch (error) {
+      console.error('Kunde inte spara namnet:', error);
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={Colors.light.accent} />
+        <Text style={styles.loadingText}>Laddar...</Text>
+      </View>
+    );
+  }
+
+  const renderMapItem = ({ item }: { item: MapWithState }) => {
+    let statusIcon = 'circle';
+    let statusColor: string = Colors.light.textMuted;
+    
+    if (item.state === 'completed') {
+      statusIcon = 'check-circle';
+      statusColor = Colors.light.accent;
+    } else if (item.state === 'started') {
+      statusIcon = 'play-circle';
+      statusColor = Colors.light.primary;
+    }
+
+    return (
+      <TouchableOpacity 
+        style={styles.card} 
+        onPress={() => router.push(`/map?id=${item.id}`)}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>{item.name}</Text>
+          <Feather name={statusIcon as any} size={24} color={statusColor} />
+        </View>
+        <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
+        
+        <View style={styles.tagsContainer}>
+          <View style={styles.tag}>
+            <Feather name="map" size={12} color={Colors.light.textMuted} style={styles.tagIcon} />
+            <Text style={styles.tagText}>
+              {item.distanceM ? `${(item.distanceM / 1000).toFixed(1)} km` : 'Okänd'}
+            </Text>
+          </View>
+          <View style={styles.tag}>
+            <Feather name="bar-chart-2" size={12} color={Colors.light.textMuted} style={styles.tagIcon} />
+            <Text style={styles.tagText}>{item.difficulty}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity>
-          <Feather name="menu" size={28} color={Colors.light.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Kartor</Text>
-        <TouchableOpacity>
-          <Feather name="search" size={28} color={Colors.light.text} />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <Text style={styles.headerTitle}>Välj karta</Text>
+      
+      {maps.length === 0 ? (
+        <View style={styles.centered}>
+          <Text style={styles.loadingText}>Inga kartor hittades.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={maps}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMapItem}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
 
-      <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'Nya' && styles.activeTabButton]}
-          onPress={() => setActiveTab('Nya')}
+      <Modal
+        visible={showNameModal}
+        animationType="fade"
+        transparent={true}
+      >
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <Text style={[styles.tabText, activeTab === 'Nya' && styles.activeTabText]}>Nya</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'Påbörjade' && styles.activeTabButton]}
-          onPress={() => setActiveTab('Påbörjade')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Påbörjade' && styles.activeTabText]}>Påbörjade</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'Avklarade' && styles.activeTabButton]}
-          onPress={() => setActiveTab('Avklarade')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Avklarade' && styles.activeTabText]}>Avklarade</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Välkommen!</Text>
+            <Text style={styles.modalDesc}>Vad vill du kallas i appen?</Text>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Skriv ditt namn här..."
+              placeholderTextColor={Colors.light.textMuted}
+              value={userNameInput}
+              onChangeText={setUserNameInput}
+              autoFocus={true}
+              maxLength={25} // Matchar valideringen i profilesDAL.tsx
+            />
 
-      <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
-        {displayedMaps.map((item) => (
-          <TouchableOpacity 
-            key={item.id} 
-            style={styles.card}
-            onPress={() => router.push(`/map?id=${item.id}`)}
-          >
-            <View style={styles.imagePlaceholder}>
-              <Text style={styles.imageText}>Karta</Text>
-            </View>
+            <TouchableOpacity 
+              style={[styles.saveButton, !userNameInput.trim() && styles.saveButtonDisabled]} 
+              onPress={handleSaveName}
+              disabled={!userNameInput.trim() || savingName}
+            >
+              {savingName ? (
+                <ActivityIndicator color={Colors.light.background} />
+              ) : (
+                <Text style={styles.saveButtonText}>Spara och fortsätt</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
-            <View style={styles.infoContainer}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardSubText}>{item.location}</Text>
-              <Text style={styles.cardSubText}>{item.distance}</Text>
-              
-              <View style={styles.difficultyContainer}>
-                <Text style={styles.cardSubText}>{item.difficulty}</Text>
-                <View style={styles.dotsRow}>
-                  {[1, 2, 3].map((dot) => (
-                    <View 
-                      key={dot} 
-                      style={[
-                        styles.dot, 
-                        dot <= item.diffLevel ? styles.dotFilled : styles.dotEmpty
-                      ]} 
-                    />
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.chevronContainer}>
-              <Feather name="chevron-right" size={24} color={Colors.light.text} />
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.light.beigeBg, 
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: Colors.light.text,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-    marginHorizontal: 20,
-  },
-  tabButton: {
-    paddingBottom: 10,
-    paddingHorizontal: 10,
-  },
-  activeTabButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.light.text,
-  },
-  tabText: {
-    fontSize: 16,
-    color: Colors.light.textMuted,
-  },
-  activeTabText: {
-    color: Colors.light.text,
-    fontWeight: '600',
-  },
-  listContainer: {
-    flex: 1,
-  },
-  listContent: {
-    padding: 20,
-  },
-  card: {
-    backgroundColor: Colors.light.cardBg,
-    flexDirection: 'row',
-    padding: 15,
-    marginBottom: 15,
-    borderRadius: 4,
-  },
-  imagePlaceholder: {
-    width: 80,
-    height: 80,
-    backgroundColor: Colors.light.mapPlaceholder, 
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  imageText: {
-    color: Colors.light.textMuted,
-    fontSize: 12,
-  },
-  infoContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: Colors.light.textMain,
-  },
-  cardSubText: {
-    fontSize: 12,
-    color: Colors.light.textMain,
-    marginBottom: 2,
-  },
-  difficultyContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    marginLeft: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: 4,
-  },
-  dotFilled: {
-    backgroundColor: Colors.light.accent, 
-  },
-  dotEmpty: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.light.accent,
-  },
-  chevronContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingLeft: 10,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.beigeBgDarker },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, color: Colors.light.textMuted, fontSize: 16 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: Colors.light.textMain, marginTop: 60, marginBottom: 20, paddingHorizontal: 20 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  card: { backgroundColor: Colors.light.cardBg, borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  cardTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.light.textMain },
+  cardDesc: { fontSize: 14, color: Colors.light.textMuted, marginBottom: 16 },
+  tagsContainer: { flexDirection: 'row', gap: 12 },
+  tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.light.beigeBg, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: Colors.light.border },
+  tagIcon: { marginRight: 4 },
+  tagText: { fontSize: 12, fontWeight: '600', color: Colors.light.textMain },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { backgroundColor: Colors.light.cardBg, width: '100%', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 10 },
+  modalTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.light.textMain, marginBottom: 8, textAlign: 'center' },
+  modalDesc: { fontSize: 16, color: Colors.light.textMuted, marginBottom: 24, textAlign: 'center' },
+  input: { backgroundColor: Colors.light.beigeBg, borderWidth: 1, borderColor: Colors.light.border, borderRadius: 12, padding: 16, fontSize: 16, color: Colors.light.textMain, marginBottom: 24 },
+  saveButton: { backgroundColor: Colors.light.primary, padding: 16, borderRadius: 12, alignItems: 'center' },
+  saveButtonDisabled: { backgroundColor: Colors.light.textMuted },
+  saveButtonText: { color: Colors.light.background, fontSize: 16, fontWeight: 'bold' },
 });
