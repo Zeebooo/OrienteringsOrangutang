@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Coordinate } from '@/types'; // Antar att ni har Coordinate definierad i '@/types'
+import type { Coordinate } from '@/types';
 
 // ─── Typer ────────────────────────────────────────────────────────────────
 
