@@ -1,57 +1,19 @@
 import { useLocation } from '@/hooks/use-location';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Fragment } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker, Polygon, Polyline } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { TerrainLayer } from '@/components/TerrainLayer';
 import { Colors } from '@/constants/theme';
 import { useProgress } from '@/context/ProgressContext';
 import { getMapById } from '@/data/maps';
 import { bboxToRegion } from '@/utilities/bboxToRegion';
 
-const ROAD_OUTLINE_COLOR = '#000000';
-
-function getTerrainColor(kind: string): string {
-	switch (kind) {
-		case 'open': return '#CDEBB0';
-		case 'forest': return '#789c6f';
-		case 'marsh': return 'rgba(0, 255, 255, 0.5)';
-		case 'water': return '#0399D9';
-		case 'building': return 'rgb(0, 0, 0)';
-		case 'stream': return '#8BE1F7';
-		case 'road': return '#b5793f'; // brun – måste vara ogenomskinlig, annars syns den svarta kanten igenom
-		case 'path': return '#000000';
-		default: return 'rgba(0, 0, 0, 0.5)';
-	}
-}
-
 // Begränsar hur långt in/ut man kan zooma.
 // iOS (Apple Maps): kamerans avstånd till marken i meter – mindre = mer inzoomat.
 const CAMERA_ZOOM_RANGE = { minCenterCoordinateDistance: 1000, maxCenterCoordinateDistance: 6000 };
-
-function renderTerrainFeature(feature: any, index: number) {
-	const { kind, shape, coordinates } = feature;
-	if (shape === 'line') {
-		if (feature.kind === 'path') {
-			return <Polyline key={index} coordinates={coordinates} strokeColor={getTerrainColor(kind)} strokeWidth={1} lineDashPattern={[1, 2]} />;
-		}
-		else if (kind === 'road') {
-			return (
-				<Fragment key={index}>
-					<Polyline coordinates={coordinates} strokeColor={ROAD_OUTLINE_COLOR} strokeWidth={5} />
-					<Polyline coordinates={coordinates} strokeColor={getTerrainColor(kind)} strokeWidth={3} />
-				</Fragment>
-			);
-		}
-		else
-			return <Polyline key={index} coordinates={coordinates} strokeColor={getTerrainColor(kind)} strokeWidth={3} />;
-	} else if (shape === 'polygon') {
-		return <Polygon key={index} coordinates={coordinates} fillColor={getTerrainColor(kind)} strokeColor={getTerrainColor(kind)} strokeWidth={1} holes={feature.holes} />;
-	}
-	return null;
-}
 
 function getDifficultyInfo(difficulty: string) {
 	switch (difficulty) {
@@ -119,7 +81,7 @@ export default function MapDetailScreen() {
 				showsUserLocation={true}
 				userInterfaceStyle="light"
 			>
-				{map.terrain.features.map((feature, index) => renderTerrainFeature(feature, index))}
+				<TerrainLayer terrain={map.terrain} />
 				{map.controls.map((marker, index) => (
 					<Marker key={index} coordinate={marker} />
 				))}
