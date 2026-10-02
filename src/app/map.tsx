@@ -1,6 +1,7 @@
 import { useLocation } from '@/hooks/use-location';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,19 +9,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TerrainLayer } from '@/components/TerrainLayer';
 import { Colors } from '@/constants/theme';
 import { useProgress } from '@/context/ProgressContext';
-import { getMapById } from '@/data/maps';
+import { fetchMapWithTerrain, type MapWithTerrain } from '@/services/mapsDAL';
+import type { Difficulty } from '@/types';
 import { bboxToRegion } from '@/utilities/bboxToRegion';
 
 // Begränsar hur långt in/ut man kan zooma.
 // iOS (Apple Maps): kamerans avstånd till marken i meter – mindre = mer inzoomat.
 const CAMERA_ZOOM_RANGE = { minCenterCoordinateDistance: 1000, maxCenterCoordinateDistance: 6000 };
 
-function getDifficultyInfo(difficulty: string) {
+// Med typen Difficulty klagar TypeScript om ett case stavas fel eller saknas
+function getDifficultyInfo(difficulty: Difficulty) {
 	switch (difficulty) {
-		case 'Easy': return 'Lätt';
-		case 'Medium': return 'Medelsvår';
-		case 'Hard': return 'Svår';
-		default: return 'Okänd';
+		case 'easy': return 'Lätt';
+		case 'medium': return 'Medelsvår';
+		case 'hard': return 'Svår';
 	}
 }
 
@@ -34,12 +36,33 @@ export default function MapDetailScreen() {
 	const { location } = useLocation();
 
 	const mapId = Array.isArray(id) ? id[0] : id;
-	const map = getMapById(mapId || 'berghem');
 
-	if (!map || !map.terrain) {
+	// Kartan hämtas från databasen – null tills svaret har kommit
+	const [map, setMap] = useState<MapWithTerrain | null>(null);
+	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!mapId) return;
+		fetchMapWithTerrain(mapId)
+			.then((result) => {
+				if (result) setMap(result);
+				else setError('Kartan finns inte');
+			})
+			.catch((e: Error) => setError(e.message));
+	}, [mapId]);
+
+	if (!mapId || error) {
 		return (
 			<View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-				<Text style={{ color: Colors.light.text }}>Kartan laddas eller saknas...</Text>
+				<Text style={{ color: Colors.light.text }}>{error ?? 'Ingen karta vald'}</Text>
+			</View>
+		);
+	}
+
+	if (!map) {
+		return (
+			<View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+				<Text style={{ color: Colors.light.text }}>Kartan laddas...</Text>
 			</View>
 		);
 	}

@@ -98,24 +98,24 @@ export async function fetchTerrain(mapId: string): Promise<Terrain> {
 	return data.terrain as Terrain;
 }
 
-/** Kartan och dess terräng i ett och samma anrop – för kartskärmen. */
+/** Kartan från `maps` och dess terräng från `map_terrain` – för kartskärmen. */
 export async function fetchMapWithTerrain(mapId: string): Promise<MapWithTerrain | null> {
-	const { data, error } = await supabase
-		.from('maps')
-		.select(`${MAP_COLUMNS}, map_terrain(terrain)`)
-		.eq('id', mapId)
-		.maybeSingle();
+	
+	const [mapResult, terrainResult] = await Promise.all([
+		supabase.from('maps').select(MAP_COLUMNS).eq('id', mapId).maybeSingle(),
+		supabase.from('map_terrain').select('terrain').eq('map_id', mapId).maybeSingle(),
+	]);
 
-	if (error) throw error;
-	if (!data) return null;
+	if (mapResult.error) throw mapResult.error;
+	if (terrainResult.error) throw terrainResult.error;
 
-	// map_terrain är en en-till-en-koppling, så databasen svarar med ett objekt. Utan genererade
-	// typer tror TypeScript att det är en lista, så vi hanterar båda fallen.
-	const relation: unknown = data.map_terrain;
-	const terrainRow = (Array.isArray(relation) ? relation[0] : relation) as { terrain: Terrain } | null | undefined;
-	if (!terrainRow) throw new Error(`Kartan ${mapId} saknar terräng`);
+	if (!mapResult.data) return null; // kartan finns inte
+	if (!terrainResult.data) throw new Error('Kartan saknar terräng');
 
-	return { ...toMap(data as MapRow), terrain: terrainRow.terrain };
+	return {
+		...toMap(mapResult.data as MapRow),
+		terrain: terrainResult.data.terrain as Terrain,
+	};
 }
 
 // ─── Skriva ───────────────────────────────────────────────────────────────
