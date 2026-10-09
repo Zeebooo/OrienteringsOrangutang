@@ -26,7 +26,7 @@ import { bboxToRegion } from '@/utilities/bboxToRegion';
 const CAMERA_ZOOM_RANGE = { minCenterCoordinateDistance: 500, maxCenterCoordinateDistance: 25000 };
 
 // Detta är antalet pixlar som alltid kommer synas i botten när kortet är neddraget
-const VISIBLE_HEIGHT_WHEN_DOWN = 140;
+const VISIBLE_HEIGHT_WHEN_DOWN = 130;
 
 function getDifficultyInfo(difficulty: Difficulty) {
     switch (difficulty) {
