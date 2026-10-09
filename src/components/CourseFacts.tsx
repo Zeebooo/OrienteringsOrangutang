@@ -1,5 +1,3 @@
-import { Feather } from '@expo/vector-icons';
-import type { ReactNode } from 'react';
 import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -7,6 +5,13 @@ import type { Difficulty } from '@/types';
 
 const DISTANCE_ICON = require('@/assets/HiFi/path_distance_icon.png');
 const CONTROL_ICON = require('@/assets/HiFi/controll_icon.png');
+
+// Record<Difficulty, …> gör att TypeScript klagar om en svårighetsgrad saknar ikon
+export const DIFFICULTY_ICONS: Record<Difficulty, ImageSourcePropType> = {
+	easy: require('@/assets/HiFi/icon_easy.png'),
+	medium: require('@/assets/HiFi/icon_medium.png'),
+	hard: require('@/assets/HiFi/icon_hard.png'),
+};
 
 export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
 	easy: 'Lätt',
@@ -17,10 +22,10 @@ export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
 export const formatKm = (meters: number) => (meters / 1000).toFixed(1).replace('.', ',');
 
 /** En liten beige ruta med ikon och text, t.ex. "3,4 km". */
-export function Fact({ icon, text }: { icon: ImageSourcePropType | ReactNode; text: string }) {
+export function Fact({ icon, text }: { icon: ImageSourcePropType; text: string }) {
 	return (
 		<View style={styles.fact}>
-			{isImageSource(icon) ? <Image source={icon} style={styles.factIcon} /> : icon}
+			<Image source={icon} style={styles.factIcon} />
 			<Text style={styles.factText} numberOfLines={1}>
 				{text}
 			</Text>
@@ -37,12 +42,7 @@ export function ControlsFact({ count }: { count: number }) {
 }
 
 export function DifficultyFact({ difficulty }: { difficulty: Difficulty }) {
-	return (
-		<Fact
-			icon={<Feather name="bar-chart-2" size={16} color={Colors.light.accent} />}
-			text={DIFFICULTY_LABELS[difficulty]}
-		/>
-	);
+	return <Fact icon={DIFFICULTY_ICONS[difficulty]} text={DIFFICULTY_LABELS[difficulty]} />;
 }
 
 type SummaryProps = {
@@ -66,11 +66,6 @@ export function MapSummary({ name, description, distanceM, controlsCount, diffic
 			</View>
 		</View>
 	);
-}
-
-// En bild från require() är ett tal (eller ett objekt med uri), en ikonkomponent är ett React-element
-function isImageSource(icon: ImageSourcePropType | ReactNode): icon is ImageSourcePropType {
-	return typeof icon === 'number' || (typeof icon === 'object' && icon !== null && 'uri' in icon);
 }
 
 const styles = StyleSheet.create({

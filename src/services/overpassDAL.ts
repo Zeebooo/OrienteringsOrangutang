@@ -86,20 +86,38 @@ function buildQuery({ south, west, north, east }: BoundingBox): string {
 	`;
 }
 
+// Loggas när en server misslyckas – allt mindre tålmodigt för varje server som sviker.
+// Index 0 = första servern som misslyckas, osv. Fler misslyckanden än texter återanvänder den sista.
+const FAILURE_MESSAGES = [
+	(host: string) => `🙂 ${host} svarade inte. Helt okej, alla har dåliga dagar. Vi provar nästa!`,
+	(host: string) => `😐 Nu svarade inte ${host} heller. Det är lugnt. Det är verkligen helt lugnt.`,
+	(host: string) => `🙃 Även ${host}? Fantastiskt. Vi ber bara om lite stigar, inte om månen. Nästa...`,
+	(host: string) => `😤 ${host} också. Jaha. Ingen stress, vi har ju hela dagen. Sista chansen nu, säger jag bara.`,
+];
+
+const ALL_FAILED_MESSAGE =
+	'💀 Alla Overpass-servrar har gett upp. OpenStreetMap har tydligen semester. ' +
+	'Testkartan (Campus) dömer ingen och finns alltid där för dig.';
+
+const hostOf = (url: string) => url.replace(/^https?:\/\//, '').split('/')[0];
+
 /** Provar servrarna i tur och ordning och returnerar första lyckade svaret. */
 async function fetchOverpass(query: string): Promise<OverpassResponse> {
 	let lastError = new Error('Kartservern är överbelastad just nu. Försök igen om en stund.');
 
-	for (const url of OVERPASS_URLS) {
+	for (const [attempt, url] of OVERPASS_URLS.entries()) {
 		try {
-			return await fetchFromServer(url, query);
+			const data = await fetchFromServer(url, query);
+			if (attempt > 0) console.log(`🎉 ${hostOf(url)} svarade! Se där, det gick ju. Till slut.`);
+			return data;
 		} catch (error) {
-			console.warn(`Overpass: ${url} misslyckades – ${(error as Error).message}`);
+			const message = FAILURE_MESSAGES[Math.min(attempt, FAILURE_MESSAGES.length - 1)];
+			console.warn(`${message(hostOf(url))}\n   (Fel: ${(error as Error).message})`);
 			lastError = error as Error;
 		}
 	}
 
-	// Alla servrar misslyckades
+	console.warn(ALL_FAILED_MESSAGE);
 	throw lastError;
 }
 
