@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -15,12 +16,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { deleteMap, fetchMapsByOwner, updateMapInfo } from '@/services/mapsDAL';
 import { fetchProfile, updateProfile } from '@/services/profilesDAL';
 import { fetchUserRuns, RunSummary } from '@/services/runsDAL';
+import type { Difficulty, OMap } from '@/types';
+
+const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+  easy: 'Lätt',
+  medium: 'Medelsvår',
+  hard: 'Svår',
+};
 
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   
   // Profil-state
@@ -34,6 +44,29 @@ export default function ProfileScreen() {
 
   // Historik-state
   const [runs, setRuns] = useState<RunSummary[]>([]);
+
+  // Kartor som användaren själv har skapat
+  const [myMaps, setMyMaps] = useState<OMap[]>([]);
+
+  // State för att ändra namn och beskrivning på en egen karta
+  const [editingMap, setEditingMap] = useState<OMap | null>(null);
+  const [editMapName, setEditMapName] = useState('');
+  const [editMapDescription, setEditMapDescription] = useState('');
+  const [savingMap, setSavingMap] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+  // Första trycket på "Ta bort" visar en bekräftelse, andra trycket tar bort
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deletingMap, setDeletingMap] = useState(false);
+
+  // Hämtas varje gång profilfliken visas, så att en nyss skapad karta syns direkt
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      fetchMapsByOwner(userId)
+        .then(setMyMaps)
+        .catch((error) => console.error('Kunde inte hämta mina kartor:', error));
+    }, [userId]),
+  );
 
   useEffect(() => {
     async function loadProfileData() {
@@ -84,6 +117,52 @@ export default function ProfileScreen() {
     }
   };
 
+  const openMapEditor = (map: OMap) => {
+    setEditingMap(map);
+    setEditMapName(map.name);
+    setEditMapDescription(map.description);
+    setMapError(null);
+    setConfirmDelete(false);
+  };
+
+  const handleDeleteMap = async () => {
+    if (!editingMap) return;
+
+    setDeletingMap(true);
+    setMapError(null);
+    try {
+      await deleteMap(editingMap.id);
+      setMyMaps((prev) => prev.filter((m) => m.id !== editingMap.id));
+      setEditingMap(null);
+    } catch (error) {
+      setMapError((error as Error).message);
+      setConfirmDelete(false);
+    } finally {
+      setDeletingMap(false);
+    }
+  };
+
+  const handleSaveMap = async () => {
+    const trimmedName = editMapName.trim();
+    if (!editingMap || trimmedName.length < 1) return;
+
+    setSavingMap(true);
+    setMapError(null);
+    try {
+      const updated = await updateMapInfo(editingMap.id, {
+        name: trimmedName,
+        description: editMapDescription.trim(),
+      });
+      // Byt ut kartan i listan så att ändringen syns direkt
+      setMyMaps((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      setEditingMap(null);
+    } catch (error) {
+      setMapError((error as Error).message);
+    } finally {
+      setSavingMap(false);
+    }
+  };
+
   // Beräkna dynamisk statistik baserat på databasen
   const totalMapsCount = new Set(runs.map(r => r.mapId)).size; // Antal unika banor man provat
   const totalControlsVisited = runs.reduce((acc, run) => acc + run.visitedControls.length, 0); // Totala kontroller
@@ -117,7 +196,17 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Text style={styles.nameText}>{name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.nameText}>{name}</Text>
+          <TouchableOpacity
+            style={styles.editNameButton}
+            onPress={() => { setEditNameInput(name); setShowNameModal(true); }}
+            hitSlop={12}
+            accessibilityLabel="Ändra namn"
+          >
+            <Feather name="edit-2" size={18} color={Colors.light.textMuted} />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.levelText}>Stigfinnare • Nivå 4</Text>
 
         <View style={styles.statsContainer}>
@@ -163,31 +252,48 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Inställningar</Text>
+        <Text style={styles.sectionTitle}>Mina kartor</Text>
         <View style={styles.card}>
-          <TouchableOpacity 
-            style={styles.menuRow} 
-            onPress={() => { setEditNameInput(name); setShowNameModal(true); }}
-          >
+          {myMaps.map((map) => (
+            <View key={map.id}>
+              <TouchableOpacity style={styles.menuRow} onPress={() => router.push(`/map?id=${map.id}`)}>
+                <View style={styles.rowLeft}>
+                  <View style={styles.iconWrapper}>
+                    <Feather name="map-pin" size={18} color={Colors.light.accent} />
+                  </View>
+                  <View>
+                    <Text style={styles.menuText}>{map.name}</Text>
+                    <Text style={styles.mapInfoText}>
+                      {map.distanceM !== null && `${(map.distanceM / 1000).toFixed(1).replace('.', ',')} km · `}
+                      {map.controls.length} kontroller · {DIFFICULTY_LABELS[map.difficulty]}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.rowRight}>
+                  <TouchableOpacity
+                    onPress={() => openMapEditor(map)}
+                    hitSlop={12}
+                    accessibilityLabel={`Ändra ${map.name}`}
+                  >
+                    <Feather name="edit-2" size={18} color={Colors.light.textMuted} />
+                  </TouchableOpacity>
+                  <Feather name="chevron-right" size={20} color={Colors.light.textMuted} />
+                </View>
+              </TouchableOpacity>
+              <View style={styles.separator} />
+            </View>
+          ))}
+
+          <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/create')}>
             <View style={styles.rowLeft}>
               <View style={styles.iconWrapper}>
-                <Feather name="edit-3" size={18} color={Colors.light.textMuted} />
+                <Feather name="plus" size={18} color={Colors.light.accent} />
               </View>
-              <Text style={styles.menuText}>Ändra profilinformation</Text>
+              <Text style={styles.menuText}>
+                {myMaps.length === 0 ? 'Skapa din första karta' : 'Skapa ny karta'}
+              </Text>
             </View>
             <Feather name="chevron-right" size={20} color={Colors.light.textMuted} />
-          </TouchableOpacity>
-
-          <View style={styles.separator} />
-
-          <TouchableOpacity style={styles.menuRow}>
-            <View style={styles.rowLeft}>
-              <View style={styles.iconWrapper}>
-                <Feather name="globe" size={18} color={Colors.light.textMuted} />
-              </View>
-              <Text style={styles.menuText}>Språk</Text>
-            </View>
-            <Text style={styles.actionText}>Svenska</Text>
           </TouchableOpacity>
         </View>
 
@@ -238,6 +344,90 @@ export default function ProfileScreen() {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Modal för att ändra namn och beskrivning på en egen karta */}
+      <Modal
+        visible={editingMap !== null}
+        animationType="fade"
+        transparent={true}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Ändra karta</Text>
+
+            <Text style={styles.inputLabel}>Kartans namn</Text>
+            <TextInput
+              style={styles.input}
+              value={editMapName}
+              onChangeText={setEditMapName}
+              maxLength={40}
+            />
+
+            <Text style={styles.inputLabel}>Beskrivning</Text>
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              value={editMapDescription}
+              onChangeText={setEditMapDescription}
+              placeholder="Fyll i en beskrivning för kartan"
+              placeholderTextColor={Colors.light.textMuted}
+              multiline
+            />
+
+            {mapError && <Text style={styles.errorText}>{mapError}</Text>}
+
+            {confirmDelete ? (
+              <>
+                <Text style={styles.confirmText}>
+                  {`Vill du ta bort ”${editingMap?.name}”? Kartan och alla lopp på den försvinner för alla. Det går inte att ångra.`}
+                </Text>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={() => setConfirmDelete(false)}>
+                    <Text style={styles.cancelButtonText}>Avbryt</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteMap} disabled={deletingMap}>
+                    {deletingMap ? (
+                      <ActivityIndicator color={Colors.light.background} />
+                    ) : (
+                      <Text style={styles.saveButtonText}>Ta bort</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setEditingMap(null)}
+                  >
+                    <Text style={styles.cancelButtonText}>Avbryt</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.saveButton, !editMapName.trim() && styles.saveButtonDisabled]}
+                    onPress={handleSaveMap}
+                    disabled={!editMapName.trim() || savingMap}
+                  >
+                    {savingMap ? (
+                      <ActivityIndicator color={Colors.light.background} />
+                    ) : (
+                      <Text style={styles.saveButtonText}>Spara</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.deleteLink} onPress={() => setConfirmDelete(true)}>
+                  <Feather name="trash-2" size={16} color={Colors.light.danger} />
+                  <Text style={styles.deleteLinkText}>Ta bort karta</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -297,12 +487,64 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.light.accent, 
   },
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
   nameText: {
     textAlign: 'center',
     fontSize: 24,
     fontWeight: 'bold',
-    marginTop: 10,
     color: Colors.light.textMain,
+  },
+  editNameButton: {
+    marginLeft: 8,
+  },
+  rowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.textMain,
+    marginBottom: 8,
+  },
+  multilineInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  errorText: {
+    color: Colors.light.danger,
+    marginBottom: 16,
+  },
+  confirmText: {
+    fontSize: 15,
+    color: Colors.light.textMain,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  deleteButton: {
+    flex: 1,
+    backgroundColor: Colors.light.danger,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteLink: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 20,
+  },
+  deleteLinkText: {
+    color: Colors.light.danger,
+    fontSize: 15,
+    fontWeight: '600',
   },
   levelText: {
     textAlign: 'center',
@@ -384,10 +626,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  actionText: {
+  mapInfoText: {
     color: Colors.light.textMuted,
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 13,
+    marginTop: 2,
   },
   separator: {
     height: 1,

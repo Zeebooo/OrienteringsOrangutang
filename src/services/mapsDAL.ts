@@ -74,6 +74,18 @@ export async function fetchMaps(userId: string): Promise<MapWithState[]> {
 	}));
 }
 
+/** Kartor som en viss användare har skapat, i bokstavsordning. Ingen terräng följer med. */
+export async function fetchMapsByOwner(ownerId: string): Promise<OMap[]> {
+	const { data, error } = await supabase
+		.from('maps')
+		.select(MAP_COLUMNS)
+		.eq('owner_id', ownerId)
+		.order('name');
+
+	if (error) throw error;
+	return data.map((row) => toMap(row as MapRow));
+}
+
 /** En enskild karta utan terräng, t.ex. för ett infokort. */
 export async function fetchMapById(mapId: string): Promise<OMap | null> {
 	const { data, error } = await supabase
@@ -156,8 +168,28 @@ export async function createMap(input: NewMap): Promise<OMap> {
 	return toMap(map);
 }
 
+/** Ändrar namn och beskrivning på en karta. RLS gör att bara kartans ägare kan göra det. */
+export async function updateMapInfo(
+	mapId: string,
+	changes: { name: string; description: string },
+): Promise<OMap> {
+	const { data, error } = await supabase
+		.from('maps')
+		.update({ name: changes.name, description: changes.description })
+		.eq('id', mapId)
+		.select(MAP_COLUMNS)
+		.maybeSingle();
+
+	if (error) throw error;
+	// Ingen rad tillbaka betyder att RLS stoppade ändringen (eller att kartan inte finns)
+	if (!data) throw new Error('Du har inte behörighet att ändra den här kartan');
+	return toMap(data as MapRow);
+}
+
 /** Tar bort en karta. Terrängen och alla lopp försvinner via "on delete cascade". */
 export async function deleteMap(mapId: string): Promise<void> {
-	const { error } = await supabase.from('maps').delete().eq('id', mapId);
+	const { data, error } = await supabase.from('maps').delete().eq('id', mapId).select('id');
 	if (error) throw error;
+	// RLS ger inget fel när en borttagning nekas – den tar bara bort noll rader
+	if (!data || data.length === 0) throw new Error('Du har inte behörighet att ta bort den här kartan');
 }
