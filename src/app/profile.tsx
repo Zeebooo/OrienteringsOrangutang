@@ -257,7 +257,11 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionTitle}>Mina kartor</Text>
         <View style={styles.card}>
-          {myMaps.map((map) => (
+          {myMaps.length === 0 && (
+            <Text style={styles.emptyMapsText}>Du har inte skapat några kartor än</Text>
+          )}
+
+          {myMaps.map((map, index) => (
             <View key={map.id}>
               <TouchableOpacity style={styles.menuRow} onPress={() => router.push(`/map?id=${map.id}`)}>
                 <View style={styles.rowLeft}>
@@ -284,21 +288,10 @@ export default function ProfileScreen() {
                   <Feather name="chevron-right" size={20} color={Colors.light.textMuted} />
                 </View>
               </TouchableOpacity>
-              <View style={styles.separator} />
+              {/* Avdelare mellan raderna, men inte under den sista */}
+              {index < myMaps.length - 1 && <View style={styles.separator} />}
             </View>
           ))}
-
-          <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/create')}>
-            <View style={styles.rowLeft}>
-              <View style={styles.iconWrapper}>
-                <Feather name="plus" size={18} color={Colors.light.accent} />
-              </View>
-              <Text style={styles.menuText}>
-                {myMaps.length === 0 ? 'Skapa din första karta' : 'Skapa ny karta'}
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={20} color={Colors.light.textMuted} />
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutButton}>
@@ -680,6 +673,12 @@ const styles = StyleSheet.create({
     color: Colors.light.textMain,
     fontSize: 16,
     fontWeight: '500',
+  },
+  emptyMapsText: {
+    color: Colors.light.textMuted,
+    fontSize: 15,
+    textAlign: 'center',
+    paddingVertical: 16,
   },
   mapInfoText: {
     color: Colors.light.textMuted,
