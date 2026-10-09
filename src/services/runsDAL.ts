@@ -113,3 +113,12 @@ export async function abandonRun(runId: string): Promise<void> {
 
     if (error) throw error;
 }
+
+export async function updateRunTime(runId: string, elapsedMs: number): Promise<void> {
+    const { error } = await supabase
+        .from('runs')
+        .update({ elapsed_ms: elapsedMs })
+        .eq('id', runId);
+
+    if (error) throw error;
+}
