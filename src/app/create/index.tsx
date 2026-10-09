@@ -91,7 +91,7 @@ export default function SelectAreaScreen() {
 			{/* Ramen och den dämpade kartan runt den. pointerEvents="none" släpper igenom tryck till kartan. */}
 			{frame && <FrameOverlay frame={frame} />}
 
-			<StepProgress current={1} total={3} style={styles.steps} />
+			<StepProgress current={1} total={4} style={styles.steps} />
 
 			{/* Panelen längst ner. Dess höjd används för att placera ramen ovanför den. */}
 			<View style={styles.sheet} onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}>

@@ -97,7 +97,7 @@ export default function PlaceControlsScreen() {
 				))}
 			</MapView>
 
-			<StepProgress current={2} total={3} style={styles.steps} />
+			<StepProgress current={2} total={4} style={styles.steps} />
 
 			{/* Panelen flyttar upp när tangentbordet visas, så att fälten inte döljs */}
 			<KeyboardAvoidingView

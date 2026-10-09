@@ -15,6 +15,7 @@ type MapRow = {
 	distance: number | null;
 	center_lat: number;
 	center_lng: number;
+	isPrivate: boolean;
 };
 
 export type MapState = 'not_started' | 'started' | 'completed';
@@ -31,10 +32,11 @@ export type NewMap = {
 	difficulty: Difficulty;
 	controls: Control[];
 	terrain: Terrain;
+	isPrivate: boolean;
 };
 
 // Kolumnerna i `maps`. Skrivs ut i stället för '*' så att det syns exakt vad som hämtas.
-const MAP_COLUMNS = 'id, owner_id, name, description, difficulty, controls, distance, center_lat, center_lng';
+const MAP_COLUMNS = 'id, owner_id, name, description, difficulty, controls, distance, center_lat, center_lng, isPrivate';
 
 // ─── Omvandling databas → app ─────────────────────────────────────────────
 
@@ -48,6 +50,7 @@ function toMap(row: MapRow): OMap {
 		controls: row.controls,
 		distanceM: row.distance,
 		center: { latitude: row.center_lat, longitude: row.center_lng },
+		isPrivate: row.isPrivate,
 	};
 }
 
@@ -64,7 +67,9 @@ export async function fetchMaps(userId: string): Promise<MapWithState[]> {
 	const { data, error } = await supabase
 		.from('maps')
 		.select(`${MAP_COLUMNS}, runs(completed)`)
-		.eq('runs.user_id', userId);
+		.eq('runs.user_id', userId)
+		// Andras privata kartor visas inte. Det riktiga skyddet är RLS-regeln på maps – det här är en extra spärr.
+		.or(`isPrivate.eq.false,owner_id.eq.${userId}`);
 
 	if (error) throw error;
 
@@ -147,6 +152,7 @@ export async function createMap(input: NewMap): Promise<OMap> {
 			center_lat: center.latitude,
 			center_lng: center.longitude,
 			distance: courseLengthInMeters(input.controls),
+			isPrivate: input.isPrivate,
 			// owner_id fylls i av databasen (default auth.uid())
 		})
 		.select(MAP_COLUMNS)
@@ -168,14 +174,14 @@ export async function createMap(input: NewMap): Promise<OMap> {
 	return toMap(map);
 }
 
-/** Ändrar namn och beskrivning på en karta. RLS gör att bara kartans ägare kan göra det. */
+/** Ändrar namn, beskrivning och synlighet på en karta. RLS gör att bara kartans ägare kan göra det. */
 export async function updateMapInfo(
 	mapId: string,
-	changes: { name: string; description: string },
+	changes: { name: string; description: string; isPrivate: boolean },
 ): Promise<OMap> {
 	const { data, error } = await supabase
 		.from('maps')
-		.update({ name: changes.name, description: changes.description })
+		.update({ name: changes.name, description: changes.description, isPrivate: changes.isPrivate })
 		.eq('id', mapId)
 		.select(MAP_COLUMNS)
 		.maybeSingle();

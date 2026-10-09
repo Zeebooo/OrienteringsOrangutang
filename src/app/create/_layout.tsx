@@ -35,6 +35,16 @@ export default function CreateLayout() {
         />
         <Stack.Screen name="controls" options={{ title: 'Placera kontroller' }} />
         <Stack.Screen name="details" options={{ title: 'Kartinformation' }} />
+        <Stack.Screen name="review" options={{ title: 'Granska karta' }} />
+        <Stack.Screen
+          name="published"
+          options={{
+            title: 'Karta publicerad',
+            // Kartan är redan sparad – det ska inte gå att gå tillbaka in i flödet
+            headerBackVisible: false,
+            gestureEnabled: false,
+          }}
+        />
       </Stack>
     </CreateMapProvider>
   );

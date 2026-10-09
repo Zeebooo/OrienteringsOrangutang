@@ -1,11 +1,21 @@
 import { randomUUID } from 'expo-crypto';
 import React, { createContext, useContext, useState } from 'react';
 
-import type { Control, Coordinate, Terrain } from '@/types';
+import type { Control, Coordinate, Difficulty, Terrain } from '@/types';
+
+/** Det användaren fyller i på steget "Kartinformation". */
+export type MapInfo = {
+  name: string;
+  description: string;
+  difficulty: Difficulty | null;
+};
 
 type CreateMapState = {
   terrain: Terrain | null;
   controls: Control[];
+  info: MapInfo;
+  /** null tills användaren har valt på steget "Granska karta" */
+  isPrivate: boolean | null;
   setTerrain: (terrain: Terrain) => void;
   /** Lägger till en kontroll och returnerar dess id. */
   addControl: (position: Coordinate) => string;
@@ -13,13 +23,19 @@ type CreateMapState = {
   /** Ändrar namn och/eller position. id kan inte ändras. */
   updateControl: (id: string, changes: Partial<Omit<Control, 'id'>>) => void;
   removeControl: (id: string) => void;
+  setInfo: (info: MapInfo) => void;
+  setIsPrivate: (isPrivate: boolean) => void;
 };
+
+const EMPTY_INFO: MapInfo = { name: '', description: '', difficulty: null };
 
 const CreateMapContext = createContext<CreateMapState | null>(null);
 
 export function CreateMapProvider({ children }: { children: React.ReactNode }) {
   const [terrain, setTerrainState] = useState<Terrain | null>(null);
   const [controls, setControls] = useState<Control[]>([]);
+  const [info, setInfo] = useState<MapInfo>(EMPTY_INFO);
+  const [isPrivate, setIsPrivate] = useState<boolean | null>(null);
 
   function setTerrain(newTerrain: Terrain) {
     setTerrainState(newTerrain);
@@ -46,7 +62,21 @@ export function CreateMapProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <CreateMapContext.Provider value={{ terrain, controls, setTerrain, addControl, moveControl, updateControl, removeControl }}>
+    <CreateMapContext.Provider
+      value={{
+        terrain,
+        controls,
+        info,
+        isPrivate,
+        setTerrain,
+        addControl,
+        moveControl,
+        updateControl,
+        removeControl,
+        setInfo,
+        setIsPrivate,
+      }}
+    >
       {children}
     </CreateMapContext.Provider>
   );

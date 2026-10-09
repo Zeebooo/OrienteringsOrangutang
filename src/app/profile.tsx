@@ -52,6 +52,7 @@ export default function ProfileScreen() {
   const [editingMap, setEditingMap] = useState<OMap | null>(null);
   const [editMapName, setEditMapName] = useState('');
   const [editMapDescription, setEditMapDescription] = useState('');
+  const [editMapIsPrivate, setEditMapIsPrivate] = useState(false);
   const [savingMap, setSavingMap] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   // Första trycket på "Ta bort" visar en bekräftelse, andra trycket tar bort
@@ -121,6 +122,7 @@ export default function ProfileScreen() {
     setEditingMap(map);
     setEditMapName(map.name);
     setEditMapDescription(map.description);
+    setEditMapIsPrivate(map.isPrivate);
     setMapError(null);
     setConfirmDelete(false);
   };
@@ -152,6 +154,7 @@ export default function ProfileScreen() {
       const updated = await updateMapInfo(editingMap.id, {
         name: trimmedName,
         description: editMapDescription.trim(),
+        isPrivate: editMapIsPrivate,
       });
       // Byt ut kartan i listan så att ändringen syns direkt
       setMyMaps((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
@@ -266,6 +269,7 @@ export default function ProfileScreen() {
                     <Text style={styles.mapInfoText}>
                       {map.distanceM !== null && `${(map.distanceM / 1000).toFixed(1).replace('.', ',')} km · `}
                       {map.controls.length} kontroller · {DIFFICULTY_LABELS[map.difficulty]}
+                      {map.isPrivate && ' · Privat'}
                     </Text>
                   </View>
                 </View>
@@ -378,6 +382,28 @@ export default function ProfileScreen() {
               placeholderTextColor={Colors.light.textMuted}
               multiline
             />
+
+            <Text style={styles.inputLabel}>Vem kan se kartan?</Text>
+            <View style={styles.visibilityRow}>
+              {[
+                { value: true, label: 'Bara jag', icon: 'lock' as const },
+                { value: false, label: 'Alla', icon: 'globe' as const },
+              ].map((option) => {
+                const active = editMapIsPrivate === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.label}
+                    style={[styles.visibilityOption, active && styles.visibilityOptionActive]}
+                    onPress={() => setEditMapIsPrivate(option.value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: active }}
+                  >
+                    <Feather name={option.icon} size={16} color={active ? Colors.light.background : Colors.light.textMain} />
+                    <Text style={[styles.visibilityText, active && styles.visibilityTextActive]}>{option.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             {mapError && <Text style={styles.errorText}>{mapError}</Text>}
 
@@ -520,6 +546,35 @@ const styles = StyleSheet.create({
   errorText: {
     color: Colors.light.danger,
     marginBottom: 16,
+  },
+  visibilityRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 24,
+  },
+  visibilityOption: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.beigeBg,
+  },
+  visibilityOptionActive: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  visibilityText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.light.textMain,
+  },
+  visibilityTextActive: {
+    color: Colors.light.background,
   },
   confirmText: {
     fontSize: 15,

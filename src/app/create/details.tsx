@@ -1,8 +1,6 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-	ActivityIndicator,
-	Image,
 	KeyboardAvoidingView,
 	Platform,
 	ScrollView,
@@ -11,75 +9,52 @@ import {
 	TextInput,
 	TouchableOpacity,
 	View,
-	type ImageSourcePropType,
 } from 'react-native';
 
+import { ControlsFact, DIFFICULTY_LABELS, DistanceFact } from '@/components/CourseFacts';
 import { StepProgress } from '@/components/StepProgress';
 import { Colors } from '@/constants/theme';
 import { useCreateMap } from '@/context/CreateMapContext';
-import { createMap } from '@/services/mapsDAL';
-import type { Control, Difficulty } from '@/types';
+import type { Difficulty } from '@/types';
 import { courseLengthInMeters } from '@/utilities/geo';
 
-const DISTANCE_ICON = require('@/assets/HiFi/path_distance_icon.png');
-const CONTROL_ICON = require('@/assets/HiFi/controll_icon.png');
-
-const DIFFICULTIES: { value: Difficulty; label: string }[] = [
-	{ value: 'easy', label: 'Lätt' },
-	{ value: 'medium', label: 'Medelsvår' },
-	{ value: 'hard', label: 'Svår' },
-];
+const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
 
 const MAX_NAME_LENGTH = 40;
 
-// Steg 3: banfakta, namn, beskrivning och svårighet – sedan sparas kartan i databasen
+// Steg 3: banfakta, namn, beskrivning och svårighet. Sparas i utkastet – själva publiceringen sker i steg 4.
 export default function MapDetailsScreen() {
 	const router = useRouter();
-	const { terrain, controls } = useCreateMap();
+	const { terrain, controls, info, setInfo } = useCreateMap();
 
-	const [name, setName] = useState('');
-	const [description, setDescription] = useState('');
-	const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
-	const [saving, setSaving] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	// Startvärden från utkastet, så att inget försvinner om man går tillbaka från steg 4
+	const [name, setName] = useState(info.name);
+	const [description, setDescription] = useState(info.description);
+	const [difficulty, setDifficulty] = useState<Difficulty | null>(info.difficulty);
 
 	if (!terrain) return <Redirect href="/create" />;
 
-	const canSave = name.trim().length > 0 && difficulty !== null && !saving;
+	const canContinue = name.trim().length > 0 && difficulty !== null;
 	const lengthM = courseLengthInMeters(controls);
 
-	async function handleSave() {
-		if (!terrain || !difficulty || !canSave) return;
-		setSaving(true);
-		setError(null);
-		try {
-			await createMap({
-				name: name.trim(),
-				description: description.trim(),
-				difficulty,
-				controls: withDefaultNames(controls),
-				terrain,
-			});
-			// Tillbaka till kartlistan – den hämtar om kartorna när den visas, så den nya syns direkt
-			router.navigate('/');
-		} catch (e) {
-			setError((e as Error).message);
-			setSaving(false);
-		}
+	function handleNext() {
+		if (!canContinue) return;
+		setInfo({ name: name.trim(), description: description.trim(), difficulty });
+		router.push('/create/review');
 	}
 
 	return (
 		<KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 			<ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-				<StepProgress current={3} total={3} style={styles.steps} />
+				<StepProgress current={3} total={4} style={styles.steps} />
 
 				{/* Banfakta – räknas ut från kontrollerna, inget användaren fyller i */}
 				<View style={styles.factsCard}>
 					<Text style={styles.factsTitle}>Banfakta</Text>
 					<Text style={styles.factsSubtitle}>Beräknat från din karta</Text>
 					<View style={styles.factsRow}>
-						<Fact icon={DISTANCE_ICON} text={lengthM !== null ? `${formatKm(lengthM)} km` : '– km'} />
-						<Fact icon={CONTROL_ICON} text={`${controls.length} kontroller`} />
+						<DistanceFact meters={lengthM} />
+						<ControlsFact count={controls.length} />
 					</View>
 				</View>
 
@@ -106,57 +81,31 @@ export default function MapDetailsScreen() {
 				<Text style={styles.label}>Svårighetsgrad</Text>
 				<View style={styles.difficultyRow}>
 					{DIFFICULTIES.map((d) => {
-						const active = difficulty === d.value;
+						const active = difficulty === d;
 						return (
 							<TouchableOpacity
-								key={d.value}
+								key={d}
 								style={[styles.difficultyButton, active && styles.difficultyButtonActive]}
-								onPress={() => setDifficulty(d.value)}
+								onPress={() => setDifficulty(d)}
 							>
-								<Text style={[styles.difficultyText, active && styles.difficultyTextActive]}>{d.label}</Text>
+								<Text style={[styles.difficultyText, active && styles.difficultyTextActive]}>
+									{DIFFICULTY_LABELS[d]}
+								</Text>
 							</TouchableOpacity>
 						);
 					})}
 				</View>
 
-				{error && <Text style={styles.error}>Kunde inte spara: {error}</Text>}
-
 				<TouchableOpacity
-					style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
-					onPress={handleSave}
-					disabled={!canSave}
+					style={[styles.nextButton, !canContinue && styles.nextButtonDisabled]}
+					onPress={handleNext}
+					disabled={!canContinue}
 				>
-					{saving ? (
-						<ActivityIndicator color={Colors.light.background} />
-					) : (
-						<Text style={styles.saveButtonText}>Publicera →</Text>
-					)}
+					<Text style={styles.nextButtonText}>Nästa →</Text>
 				</TouchableOpacity>
 			</ScrollView>
 		</KeyboardAvoidingView>
 	);
-}
-
-function Fact({ icon, text }: { icon: ImageSourcePropType; text: string }) {
-	return (
-		<View style={styles.fact}>
-			<Image source={icon} style={styles.factIcon} />
-			<Text style={styles.factText}>{text}</Text>
-		</View>
-	);
-}
-
-const formatKm = (meters: number) => (meters / 1000).toFixed(1).replace('.', ',');
-
-/**
- * Kontroller utan namn får "Kontroll 1", "Kontroll 2" … efter sin plats i banan.
- * Görs först när kartan sparas, så att numret stämmer även om kontroller tagits bort på vägen.
- */
-function withDefaultNames(controls: Control[]): Control[] {
-	return controls.map((control, index) => ({
-		...control,
-		description: control.description?.trim() || `Kontroll ${index + 1}`,
-	}));
 }
 
 const BORDER_COLOR = Colors.light.textMain;
@@ -197,26 +146,6 @@ const styles = StyleSheet.create({
 	factsRow: {
 		flexDirection: 'row',
 		gap: 12,
-	},
-	fact: {
-		flex: 1,
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'center',
-		gap: 8,
-		backgroundColor: Colors.light.beigeBg,
-		borderRadius: 12,
-		paddingVertical: 16,
-	},
-	factIcon: {
-		width: 20,
-		height: 20,
-		resizeMode: 'contain',
-	},
-	factText: {
-		fontSize: 16,
-		fontWeight: '600',
-		color: Colors.light.text,
 	},
 	label: {
 		fontSize: 18,
@@ -264,11 +193,7 @@ const styles = StyleSheet.create({
 		color: Colors.light.background,
 		fontWeight: '600',
 	},
-	error: {
-		color: Colors.light.danger,
-		marginTop: 16,
-	},
-	saveButton: {
+	nextButton: {
 		backgroundColor: Colors.light.primary,
 		borderWidth: 1,
 		borderColor: BORDER_COLOR,
@@ -277,10 +202,10 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		marginTop: 40,
 	},
-	saveButtonDisabled: {
+	nextButtonDisabled: {
 		opacity: 0.4,
 	},
-	saveButtonText: {
+	nextButtonText: {
 		color: Colors.light.background,
 		fontSize: 22,
 		fontWeight: '500',
