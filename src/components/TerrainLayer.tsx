@@ -11,7 +11,7 @@ export const TERRAIN_COLORS: Record<TerrainKind, string> = {
 	forest: '#789c6f',
 	marsh: 'rgba(0, 255, 255, 0.5)',
 	water: '#0399D9',
-	building: 'rgb(0, 0, 0)',
+	building: 'rgba(30, 30, 30, 0.8)',
 	stream: '#8BE1F7',
 	road: '#b5793f', // brun – måste vara ogenomskinlig, annars syns den svarta kanten igenom
 	path: '#000000',

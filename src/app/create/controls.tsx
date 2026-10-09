@@ -68,6 +68,7 @@ export default function PlaceControlsScreen() {
 		<View style={styles.container}>
 			<MapView
 				style={StyleSheet.absoluteFill}
+				showsPointsOfInterests={false}
 				initialRegion={bboxToRegion(terrain.bbox)}
 				onPress={handleMapPress}
 				rotateEnabled={false}

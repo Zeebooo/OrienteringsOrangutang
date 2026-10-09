@@ -80,6 +80,7 @@ export default function SelectAreaScreen() {
 			<MapView
 				ref={mapRef}
 				style={StyleSheet.absoluteFill}
+				showsPointsOfInterests={false}
 				onLayout={handleMapLayout}
 				onRegionChangeComplete={setRegion}
 				showsUserLocation

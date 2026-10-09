@@ -1,14 +1,20 @@
 import { supabase } from '@/lib/supabase';
-import type { Coordinate } from '@/types';
+import type { Control } from '@/types';
 
 export type RunState = 'started' | 'completed';
+
+/**
+ * En stämplad kontroll: kontrollen plus timerns värde när den togs.
+ * elapsedMs saknas på stämplingar som gjordes innan tiden började sparas.
+ */
+export type VisitedControl = Control & { elapsedMs?: number };
 
 type RunRow = {
     id: string;
     user_id: string;
     map_id: string;
     elapsed_ms: number;
-    visited_controls: Coordinate[];
+    visited_controls: VisitedControl[];
     completed: boolean;
 };
 
@@ -17,7 +23,7 @@ export type RunSummary = {
     userId: string;
     mapId: string;
     elapsedMs: number;
-    visitedControls: Coordinate[];
+    visitedControls: VisitedControl[];
     isCompleted: boolean;
     state: RunState;
 };
@@ -77,7 +83,7 @@ export async function createRun(userId: string, mapId: string): Promise<RunSumma
     return toRun(data as RunRow);
 }
 
-export async function updateVisitedControls(runId: string, visitedControls: Coordinate[]): Promise<RunSummary> {
+export async function updateVisitedControls(runId: string, visitedControls: VisitedControl[]): Promise<RunSummary> {
     const { data, error } = await supabase
         .from('runs')
         .update({ visited_controls: visitedControls })
@@ -89,7 +95,7 @@ export async function updateVisitedControls(runId: string, visitedControls: Coor
     return toRun(data as RunRow);
 }
 
-export async function completeRun(runId: string, elapsedMs: number, finalControls: Coordinate[]): Promise<RunSummary> {
+export async function completeRun(runId: string, elapsedMs: number, finalControls: VisitedControl[]): Promise<RunSummary> {
     const { data, error } = await supabase
         .from('runs')
         .update({
