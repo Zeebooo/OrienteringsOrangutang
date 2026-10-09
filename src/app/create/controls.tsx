@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, Polyline, type MapPressEvent } from 'react-native-maps';
 
+import { StepProgress } from '@/components/StepProgress';
 import { TerrainLayer } from '@/components/TerrainLayer';
 import { Colors } from '@/constants/theme';
 import { useCreateMap } from '@/context/CreateMapContext';
@@ -96,6 +97,8 @@ export default function PlaceControlsScreen() {
 				))}
 			</MapView>
 
+			<StepProgress current={2} total={3} style={styles.steps} />
+
 			{/* Panelen flyttar upp när tangentbordet visas, så att fälten inte döljs */}
 			<KeyboardAvoidingView
 				style={styles.panelWrapper}
@@ -160,7 +163,8 @@ function ControlEditor({ control, number, isNew, onChange, onDone, onRemove }: C
 				style={styles.input}
 				value={control.description ?? ''}
 				onChangeText={(text) => onChange({ description: text })}
-				placeholder="T.ex. Stigkorsning, Stora stenen"
+				// Visar namnet kontrollen får om fältet lämnas tomt
+				placeholder={`Kontroll ${number}`}
 				placeholderTextColor={Colors.light.textMuted}
 				maxLength={40}
 			/>
@@ -236,6 +240,12 @@ function CoordinateInput({ label, value, min, max, onChange }: CoordinateInputPr
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
+	},
+	steps: {
+		position: 'absolute',
+		top: 16,
+		left: 48,
+		right: 48,
 	},
 	control: {
 		width: 32,

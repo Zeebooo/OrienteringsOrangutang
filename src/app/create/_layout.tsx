@@ -34,7 +34,7 @@ export default function CreateLayout() {
           }}
         />
         <Stack.Screen name="controls" options={{ title: 'Placera kontroller' }} />
-        <Stack.Screen name="details" options={{ title: 'Detaljer' }} />
+        <Stack.Screen name="details" options={{ title: 'Kartinformation' }} />
       </Stack>
     </CreateMapProvider>
   );
