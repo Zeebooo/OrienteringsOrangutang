@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Animated,
+    Image,
     Modal,
     PanResponder,
     Platform,
@@ -24,9 +25,7 @@ import type { Difficulty } from '@/types';
 import { bboxToRegion } from '@/utilities/bboxToRegion';
 
 const CAMERA_ZOOM_RANGE = { minCenterCoordinateDistance: 500, maxCenterCoordinateDistance: 25000 };
-
-// Detta är antalet pixlar som alltid kommer synas i botten när kortet är neddraget
-const VISIBLE_HEIGHT_WHEN_DOWN = 130;
+const MENU_DOWN_POSITION = 160; 
 
 function getDifficultyInfo(difficulty: Difficulty) {
     switch (difficulty) {
@@ -75,7 +74,6 @@ export default function MapDetailScreen() {
     // --- ANIMATION & GESTURE LOGIC ---
     const panY = useRef(new Animated.Value(0)).current;
     const lastY = useRef(0); 
-    const cardHeightRef = useRef(300); // Sparar kortets faktiska höjd
     
     const panResponder = useRef(
         PanResponder.create({
@@ -92,15 +90,12 @@ export default function MapDetailScreen() {
             onPanResponderRelease: (_, gestureState) => {
                 panY.flattenOffset();
                 
-                // Räkna ut exakt hur långt ner den ska åka baserat på dess nuvarande höjd
-                const downPosition = Math.max(0, cardHeightRef.current - VISIBLE_HEIGHT_WHEN_DOWN);
-                
                 if (gestureState.vy > 0.5 || gestureState.dy > 50) {
                     Animated.spring(panY, {
-                        toValue: downPosition, 
+                        toValue: MENU_DOWN_POSITION, 
                         useNativeDriver: false,
                     }).start();
-                    lastY.current = downPosition;
+                    lastY.current = MENU_DOWN_POSITION;
                 } 
                 else if (gestureState.vy < -0.5 || gestureState.dy < -50) {
                     Animated.spring(panY, {
@@ -120,19 +115,10 @@ export default function MapDetailScreen() {
     ).current;
 
     const translateY = panY.interpolate({
-        inputRange: [0, 800], // Tillåter kortet att åka mycket längre ner nu utan att fastna
-        outputRange: [0, 800],
+        inputRange: [0, MENU_DOWN_POSITION],
+        outputRange: [0, MENU_DOWN_POSITION],
         extrapolate: 'clamp',
     });
-
-    // Tvinga upp menyn när statusen (state) ändras
-    useEffect(() => {
-        Animated.spring(panY, {
-            toValue: 0,
-            useNativeDriver: false,
-        }).start();
-        lastY.current = 0;
-    }, [runStatus]);
 
     // --- DATABAS & EFFEKTER ---
     useEffect(() => {
@@ -245,6 +231,13 @@ export default function MapDetailScreen() {
                 setElapsedSeconds(0);
                 setIsTimerRunning(true);
             }
+            
+            Animated.spring(panY, {
+                toValue: 0,
+                useNativeDriver: false,
+            }).start();
+            lastY.current = 0;
+
         } catch (e) {
             console.error("Fel vid hantering av runs:", e);
         } finally {
@@ -327,10 +320,6 @@ export default function MapDetailScreen() {
                 <Animated.View 
                     style={[styles.bottomCard, { transform: [{ translateY }] }]}
                     {...panResponder.panHandlers}
-                    // Mäter kortets höjd när det ritas ut så att koden vet exakt hur långt ner den får åka
-                    onLayout={(event) => {
-                        cardHeightRef.current = event.nativeEvent.layout.height;
-                    }}
                 >
                     <View style={styles.dragHandleContainer}>
                         <View style={styles.dragHandle} />
@@ -339,12 +328,19 @@ export default function MapDetailScreen() {
                     <Text style={styles.cardTitle}>{map.name}</Text>
 
                     <View style={styles.tagsContainer}>
+                        {/* HÄR ÄR DE NYA IKONERNA FRÅN FIGMA */}
                         <View style={styles.tag}>
-                            <Feather name="wind" size={14} color="#000" style={styles.tagIcon} />
+                            <Image 
+                                source={require('@/assets/HiFi/path_distance_icon.png')} 
+                                style={styles.tagImageIcon} 
+                            />
                             <Text style={styles.tagText}>{distanceDisplay}</Text>
                         </View>
                         <View style={styles.tag}>
-                            <Feather name="square" size={14} color="#000" style={styles.tagIcon} />
+                            <Image 
+                                source={require('@/assets/HiFi/controll_icon.png')} 
+                                style={styles.tagImageIcon} 
+                            />
                             <Text style={styles.tagText}>{map.controls.length} kontroller</Text>
                         </View>
                         <View style={styles.tag}>
@@ -495,7 +491,11 @@ const styles = StyleSheet.create({
     
     tagsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
     tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F5EC', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E0E0D1' },
+    
     tagIcon: { marginRight: 6 },
+    // Ny stil för dina bild-ikoner
+    tagImageIcon: { width: 14, height: 14, marginRight: 6, resizeMode: 'contain' },
+    
     tagText: { fontSize: 11, fontWeight: '600', color: '#000' },
 
     infoBoxOngoing: { backgroundColor: '#F0EFE6', borderRadius: 8, padding: 16, marginBottom: 20 },
