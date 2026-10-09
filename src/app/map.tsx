@@ -1,5 +1,6 @@
 import { useLocation } from '@/hooks/use-location';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -30,8 +31,10 @@ const COMPASS_SIZE = 44;
 
 // Automatisk stämpling: så nära (meter) och så länge (ms) man måste vara vid nästa kontroll.
 // GPS i telefoner är ofta ±5–10 m, så radien får inte vara för liten.
-const STAMP_RADIUS_M = 5;
+const STAMP_RADIUS_M = 15;
 const STAMP_DWELL_MS = 4000;
+const STAMP_FILL_TICK_MS = 100; // hur ofta fyllnaden uppdateras
+const STAMP_HAPTIC_BPM = 290; // vibrationens takt medan kontrollen fylls (290 bpm ≈ var 207:e ms)
 const BIG_CONTROL_ICON = require('@/assets/HiFi/big_control_icon.png');
 const MARKER_SIZE = 34;
 // Knallorange så att kontrollerna sticker ut mot terrängens gröna och bruna färger
@@ -256,23 +259,25 @@ export default function MapDetailScreen() {
 
     // --- STÄMPLING ---
 
-    /** Stämplar nästa kontroll i ordningen. Används både av närhetskontrollen och simulatorknappen. */
-    const stampNextControl = async () => {
+    // Kontrollerna kan tas i vilken ordning som helst, så "tagen" avgörs av id – inte av plats i listan
+    const visitedIds = new Set((currentRun?.visitedControls ?? []).map((v) => v.id));
+
+    /** Stämplar kontrollen med index `controlIndex`. Används både av närhetskontrollen och simulatorknappen. */
+    const stampControl = async (controlIndex: number) => {
         if (!map || !isTimerRunning || !activeRunId || !currentRun || isProcessing) return;
+        const control = map.controls[controlIndex];
+        if (!control || visitedIds.has(control.id)) return;
         setIsProcessing(true);
 
         try {
-            const visitedCount = currentRun.visitedControls?.length || 0;
-            const controlIndex = visitedCount;
-            const nextControl = map.controls[controlIndex];
-            if (!nextControl) return;
-
             // Timerns värde sparas med stämplingen, så att man kan se när kontrollen togs
             const elapsedMs = elapsedSeconds * 1000;
-            const stamp = { ...nextControl, elapsedMs };
+            const stamp = { ...control, elapsedMs };
             const newVisited = [...(currentRun.visitedControls || []), stamp];
             const updatedRun = await updateVisitedControls(activeRunId, newVisited);
             setCurrentRun(updatedRun);
+            // En tydlig "klar"-vibration när kontrollen är tagen
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 
             if (newVisited.length >= map.controls.length) {
                 // Sista kontrollen – resultatrutan tar över i stället för popupen
@@ -292,31 +297,62 @@ export default function MapDetailScreen() {
         }
     };
 
-    // Närhetskontroll: står man inom STAMP_RADIUS_M från nästa kontroll i STAMP_DWELL_MS stämplas den.
-    // Körs varje sekund (timern ritar om skärmen) och när positionen uppdateras.
-    // Använder positionen från useLocation, så det fungerar oavsett om pricken visas på kartan.
-    const nearSinceRef = useRef<number | null>(null);
+    // Närhetskontroll: den närmaste ej tagna kontrollen inom STAMP_RADIUS_M.
+    // Räknas ut från positionen från useLocation, så det fungerar oavsett om pricken visas på kartan.
+    const canStamp = runStatus === 'started' && isTimerRunning && !isProcessing && !stampedPopup;
+    let nearControlIndex: number | null = null;
+    if (canStamp && map && location) {
+        let nearestDistance = STAMP_RADIUS_M;
+        for (let index = 0; index < map.controls.length; index++) {
+            const control = map.controls[index];
+            if (visitedIds.has(control.id)) continue;
+            const distance = distanceInMeters(location, control);
+            if (distance <= nearestDistance) {
+                nearestDistance = distance;
+                nearControlIndex = index;
+            }
+        }
+    }
+
+    // Senaste versionen av stampControl – intervallet nedan behöver aktuell tid och aktuellt lopp
+    const stampControlRef = useRef(stampControl);
     useEffect(() => {
-        const nextControl = map?.controls[currentRun?.visitedControls?.length ?? 0];
-        const canStamp = runStatus === 'started' && isTimerRunning && !isProcessing && !stampedPopup;
-
-        if (!canStamp || !nextControl || !location) {
-            nearSinceRef.current = null;
-            return;
-        }
-
-        if (distanceInMeters(location, nextControl) > STAMP_RADIUS_M) {
-            nearSinceRef.current = null; // gick för långt bort – börja om
-            return;
-        }
-
-        if (nearSinceRef.current === null) {
-            nearSinceRef.current = Date.now();
-        } else if (Date.now() - nearSinceRef.current >= STAMP_DWELL_MS) {
-            nearSinceRef.current = null;
-            stampNextControl();
-        }
+        stampControlRef.current = stampControl;
     });
+
+    // Fyller kontrollen gradvis medan man står kvar. När den är full stämplas den.
+    // Byter man kontroll eller går för långt bort börjar det om, eftersom effekten körs om.
+    const [stampFill, setStampFill] = useState<{ index: number; progress: number } | null>(null);
+    useEffect(() => {
+        if (nearControlIndex === null) return;
+        const index = nearControlIndex;
+        const startedAt = Date.now();
+
+        // Telefonen vibrerar i takt (STAMP_HAPTIC_BPM) så länge kontrollen fylls
+        const vibrate = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        vibrate();
+        const hapticInterval = setInterval(vibrate, 60_000 / STAMP_HAPTIC_BPM);
+
+        const interval = setInterval(() => {
+            const progress = Math.min(1, (Date.now() - startedAt) / STAMP_DWELL_MS);
+            setStampFill({ index, progress });
+            if (progress >= 1) {
+                clearInterval(interval);
+                clearInterval(hapticInterval);
+                stampControlRef.current(index);
+            }
+        }, STAMP_FILL_TICK_MS);
+
+        // Körs när man går därifrån, byter kontroll eller när kontrollen tagits – vibrationen slutar direkt
+        return () => {
+            clearInterval(interval);
+            clearInterval(hapticInterval);
+        };
+    }, [nearControlIndex]);
+
+    // Fyllnaden visas bara för kontrollen man står vid just nu
+    const fillProgressFor = (index: number) =>
+        nearControlIndex === index && stampFill?.index === index ? stampFill.progress : 0;
 
     const handleBack = async () => {
         if (runStatus === 'started' && isTimerRunning && activeRunId) {
@@ -389,7 +425,10 @@ export default function MapDetailScreen() {
     };
 
     // Simulatorknappen – stämplar utan att man behöver vara på plats
-    const handleStamp = () => stampNextControl();
+    const handleStamp = () => {
+        const firstNotTaken = map.controls.findIndex((c) => !visitedIds.has(c.id));
+        if (firstNotTaken !== -1) stampControl(firstNotTaken);
+    };
 
     let buttonText = 'Starta karta';
     if (runStatus === 'started') buttonText = isTimerRunning ? 'Pausa karta' : 'Återuppta karta';
@@ -411,8 +450,8 @@ export default function MapDetailScreen() {
         const number = index + 1;
         const defaultName = `Kontroll ${number}`;
         const visited = currentRun?.visitedControls ?? [];
-        // Stämplingar sparas i ordning, men leta i första hand på id
-        const stamp = visited.find((v) => v.id === control.id) ?? (index < visited.length ? visited[index] : undefined);
+        // Kontroller kan tas i vilken ordning som helst, så stämplingen letas upp på id
+        const stamp = visited.find((v) => v.id === control.id);
         const isTaken = stamp !== undefined || runStatus === 'completed';
 
         let status = 'Ej tagen';
@@ -428,6 +467,12 @@ export default function MapDetailScreen() {
             elapsedMs: stamp?.elapsedMs,
         };
     }
+
+    // Resultatrutans ordning: kontrollerna sorterade efter när de togs.
+    // Kontroller utan sparad tid (äldre lopp) hamnar sist, i banans ordning.
+    const resultOrder = map.controls
+        .map((_, index) => index)
+        .sort((a, b) => (getControlInfo(a).elapsedMs ?? Infinity) - (getControlInfo(b).elapsedMs ?? Infinity));
 
     const handleMapPress = (e: MapPressEvent) => {
         // På Android skickas även tryck på en kontroll till kartan – de ska inte stänga rutan
@@ -454,7 +499,8 @@ export default function MapDetailScreen() {
                 <TerrainLayer terrain={map.terrain} />
                 
                 {map.controls.map((marker, index) => {
-                    const isVisited = visitedControlsCount > index || runStatus === 'completed';
+                    const isVisited = visitedIds.has(marker.id) || runStatus === 'completed';
+                    const fill = isVisited ? 0 : fillProgressFor(index);
                     return (
                         <Marker
                             key={index}
@@ -471,6 +517,12 @@ export default function MapDetailScreen() {
                                         selectedControlIndex === index && styles.markerSelected,
                                     ]}
                                 >
+                                    {/* Fylls nerifrån och upp medan man står vid kontrollen */}
+                                    {fill > 0 && (
+                                        <View style={styles.markerFillClip}>
+                                            <View style={[styles.markerFill, { height: `${fill * 100}%` }]} />
+                                        </View>
+                                    )}
                                     <Text style={[styles.markerNumber, isVisited && styles.markerNumberVisited]}>
                                         {index + 1}
                                     </Text>
@@ -679,21 +731,22 @@ export default function MapDetailScreen() {
                             </View>
 
                             <View style={styles.timelineContainer}>
-                                {map.controls.map((_, i) => {
-                                    const info = getControlInfo(i);
-                                    // Sträcktid = tiden från förra kontrollen (eller starten) hit
-                                    const previousMs = i === 0 ? 0 : getControlInfo(i - 1).elapsedMs;
+                                {/* I den ordning kontrollerna togs, eftersom de kan tas i vilken ordning som helst */}
+                                {resultOrder.map((controlIndex, i) => {
+                                    const info = getControlInfo(controlIndex);
+                                    // Sträcktid = tiden från förra tagna kontrollen (eller starten) hit
+                                    const previousMs = i === 0 ? 0 : getControlInfo(resultOrder[i - 1]).elapsedMs;
                                     const splitMs = info.elapsedMs !== undefined && previousMs !== undefined
                                         ? info.elapsedMs - previousMs
                                         : undefined;
 
                                     return (
-                                        <View key={i} style={styles.timelineItem}>
+                                        <View key={controlIndex} style={styles.timelineItem}>
                                             <View style={styles.timelineLeft}>
                                                 <View style={styles.timelineDot}>
                                                     <Feather name="check" size={14} color="#FFF" />
                                                 </View>
-                                                {i < map.controls.length - 1 && <View style={styles.timelineLine} />}
+                                                {i < resultOrder.length - 1 && <View style={styles.timelineLine} />}
                                             </View>
                                             <View style={styles.timelinePillContainer}>
                                                 <View style={[styles.timelinePill, styles.timelinePillRow]}>
@@ -811,6 +864,19 @@ const styles = StyleSheet.create({
         elevation: 4,
     },
     markerVisited: { backgroundColor: CONTROL_ORANGE },
+    // Egen cirkel som klipper fyllnaden – overflow: 'hidden' på själva kontrollen skulle ta bort skuggan på iOS
+    markerFillClip: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderRadius: MARKER_SIZE / 2,
+        overflow: 'hidden',
+        justifyContent: 'flex-end',
+    },
+    // Halvgenomskinlig så att siffran syns medan den fylls; blir helt orange när kontrollen är tagen
+    markerFill: { width: '100%', backgroundColor: 'rgba(255, 107, 0, 0.5)' },
     markerNumber: { fontSize: 15, fontWeight: 'bold', color: CONTROL_ORANGE },
     markerNumberVisited: { color: '#FFF' },
     markerSelected: { transform: [{ scale: 1.2 }], borderWidth: 4 },
