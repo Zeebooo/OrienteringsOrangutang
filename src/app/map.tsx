@@ -25,7 +25,6 @@ import type { Difficulty } from '@/types';
 import { bboxToRegion } from '@/utilities/bboxToRegion';
 
 const CAMERA_ZOOM_RANGE = { minCenterCoordinateDistance: 500, maxCenterCoordinateDistance: 25000 };
-const MENU_DOWN_POSITION = 160; 
 
 function getDifficultyInfo(difficulty: Difficulty) {
     switch (difficulty) {
@@ -74,6 +73,7 @@ export default function MapDetailScreen() {
     // --- ANIMATION & GESTURE LOGIC ---
     const panY = useRef(new Animated.Value(0)).current;
     const lastY = useRef(0); 
+    const hiddenHeightRef = useRef(200); // Standardhöjd att falla tillbaka på
     
     const panResponder = useRef(
         PanResponder.create({
@@ -90,12 +90,15 @@ export default function MapDetailScreen() {
             onPanResponderRelease: (_, gestureState) => {
                 panY.flattenOffset();
                 
+                // Använd den exakta höjden av de undre elementen + kortets paddingBottom (40)
+                const downPosition = hiddenHeightRef.current;
+                
                 if (gestureState.vy > 0.5 || gestureState.dy > 50) {
                     Animated.spring(panY, {
-                        toValue: MENU_DOWN_POSITION, 
+                        toValue: downPosition, 
                         useNativeDriver: false,
                     }).start();
-                    lastY.current = MENU_DOWN_POSITION;
+                    lastY.current = downPosition;
                 } 
                 else if (gestureState.vy < -0.5 || gestureState.dy < -50) {
                     Animated.spring(panY, {
@@ -115,10 +118,19 @@ export default function MapDetailScreen() {
     ).current;
 
     const translateY = panY.interpolate({
-        inputRange: [0, MENU_DOWN_POSITION],
-        outputRange: [0, MENU_DOWN_POSITION],
+        inputRange: [0, 800],
+        outputRange: [0, 800],
         extrapolate: 'clamp',
     });
+
+    // Se till att menyn fälls upp när vi byter karta ELLER när statusen ändras
+    useEffect(() => {
+        Animated.spring(panY, {
+            toValue: 0,
+            useNativeDriver: false,
+        }).start();
+        lastY.current = 0;
+    }, [mapId, runStatus]);
 
     // --- DATABAS & EFFEKTER ---
     useEffect(() => {
@@ -231,13 +243,6 @@ export default function MapDetailScreen() {
                 setElapsedSeconds(0);
                 setIsTimerRunning(true);
             }
-            
-            Animated.spring(panY, {
-                toValue: 0,
-                useNativeDriver: false,
-            }).start();
-            lastY.current = 0;
-
         } catch (e) {
             console.error("Fel vid hantering av runs:", e);
         } finally {
@@ -328,19 +333,12 @@ export default function MapDetailScreen() {
                     <Text style={styles.cardTitle}>{map.name}</Text>
 
                     <View style={styles.tagsContainer}>
-                        {/* HÄR ÄR DE NYA IKONERNA FRÅN FIGMA */}
                         <View style={styles.tag}>
-                            <Image 
-                                source={require('@/assets/HiFi/path_distance_icon.png')} 
-                                style={styles.tagImageIcon} 
-                            />
+                            <Image source={require('@/assets/HiFi/path_distance_icon.png')} style={styles.tagImageIcon} />
                             <Text style={styles.tagText}>{distanceDisplay}</Text>
                         </View>
                         <View style={styles.tag}>
-                            <Image 
-                                source={require('@/assets/HiFi/controll_icon.png')} 
-                                style={styles.tagImageIcon} 
-                            />
+                            <Image source={require('@/assets/HiFi/controll_icon.png')} style={styles.tagImageIcon} />
                             <Text style={styles.tagText}>{map.controls.length} kontroller</Text>
                         </View>
                         <View style={styles.tag}>
@@ -349,57 +347,63 @@ export default function MapDetailScreen() {
                         </View>
                     </View>
 
-                    {runStatus === 'started' && (
-                        <View style={styles.infoBoxOngoing}>
-                            <View style={styles.infoBoxRow}>
-                                <View style={styles.infoBoxCol}>
-                                    <Text style={styles.infoBoxBigText}>{visitedControlsCount} av {map.controls.length}</Text>
-                                    <Text style={styles.infoBoxSmallText}>Kontroller tagna</Text>
+                    {/* Allt som ska döljas mäter vi höjden på automatiskt */}
+                    <View onLayout={(event) => {
+                        // Höjden på innehållet + 40 (som är kortets paddingBottom)
+                        hiddenHeightRef.current = event.nativeEvent.layout.height + 40;
+                    }}>
+                        {runStatus === 'started' && (
+                            <View style={styles.infoBoxOngoing}>
+                                <View style={styles.infoBoxRow}>
+                                    <View style={styles.infoBoxCol}>
+                                        <Text style={styles.infoBoxBigText}>{visitedControlsCount} av {map.controls.length}</Text>
+                                        <Text style={styles.infoBoxSmallText}>Kontroller tagna</Text>
+                                    </View>
+                                    <View style={styles.infoDivider} />
+                                    <View style={styles.infoBoxCol}>
+                                        <Text style={styles.infoBoxBigText}>{formatSecondsToTime(elapsedSeconds)}</Text>
+                                        <Text style={styles.infoBoxSmallText}>Tid åtgången</Text>
+                                    </View>
                                 </View>
-                                <View style={styles.infoDivider} />
-                                <View style={styles.infoBoxCol}>
-                                    <Text style={styles.infoBoxBigText}>{formatSecondsToTime(elapsedSeconds)}</Text>
-                                    <Text style={styles.infoBoxSmallText}>Tid åtgången</Text>
+                                <View style={styles.progressTrack}>
+                                    <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
                                 </View>
                             </View>
-                            <View style={styles.progressTrack}>
-                                <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
-                            </View>
-                        </View>
-                    )}
-
-                    {runStatus === 'completed' && (
-                        <TouchableOpacity style={styles.infoBoxCompleted} onPress={() => setShowResultModal(true)}>
-                            <Feather name="clock" size={24} color="#000" />
-                            <View style={{ alignItems: 'center', flex: 1 }}>
-                                <Text style={styles.infoBoxBigText}>{formatMsToTime(currentRun?.elapsedMs || 0)}</Text>
-                                <Text style={styles.infoBoxSmallText}>Tid senast avklarad karta</Text>
-                            </View>
-                            <Feather name="chevron-right" size={24} color="#000" />
-                        </TouchableOpacity>
-                    )}
-
-                    {runStatus === 'started' && (
-                        <TouchableOpacity 
-                            style={[styles.stampButton, (!isTimerRunning || isProcessing) && { opacity: 0.5 }]} 
-                            onPress={handleStamp}
-                            disabled={!isTimerRunning || isProcessing}
-                        >
-                            <Text style={styles.stampButtonText}>Stämpla nästa kontroll (Simulator)</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity 
-                        style={[styles.startButton, isProcessing && { opacity: 0.7 }]} 
-                        onPress={handlePress}
-                        disabled={isProcessing}
-                    >
-                        {isProcessing ? (
-                            <ActivityIndicator color={Colors.light.background} />
-                        ) : (
-                            <Text style={styles.startButtonText}>{buttonText}</Text>
                         )}
-                    </TouchableOpacity>
+
+                        {runStatus === 'completed' && (
+                            <TouchableOpacity style={styles.infoBoxCompleted} onPress={() => setShowResultModal(true)}>
+                                <Feather name="clock" size={24} color="#000" />
+                                <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={styles.infoBoxBigText}>{formatMsToTime(currentRun?.elapsedMs || 0)}</Text>
+                                    <Text style={styles.infoBoxSmallText}>Tid senast avklarad karta</Text>
+                                </View>
+                                <Feather name="chevron-right" size={24} color="#000" />
+                            </TouchableOpacity>
+                        )}
+
+                        {runStatus === 'started' && (
+                            <TouchableOpacity 
+                                style={[styles.stampButton, (!isTimerRunning || isProcessing) && { opacity: 0.5 }]} 
+                                onPress={handleStamp}
+                                disabled={!isTimerRunning || isProcessing}
+                            >
+                                <Text style={styles.stampButtonText}>Stämpla nästa kontroll (Simulator)</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity 
+                            style={[styles.startButton, isProcessing && { opacity: 0.7 }]} 
+                            onPress={handlePress}
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? (
+                                <ActivityIndicator color={Colors.light.background} />
+                            ) : (
+                                <Text style={styles.startButtonText}>{buttonText}</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </Animated.View>
             </SafeAreaView>
 
@@ -491,11 +495,8 @@ const styles = StyleSheet.create({
     
     tagsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
     tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F5EC', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E0E0D1' },
-    
     tagIcon: { marginRight: 6 },
-    // Ny stil för dina bild-ikoner
     tagImageIcon: { width: 14, height: 14, marginRight: 6, resizeMode: 'contain' },
-    
     tagText: { fontSize: 11, fontWeight: '600', color: '#000' },
 
     infoBoxOngoing: { backgroundColor: '#F0EFE6', borderRadius: 8, padding: 16, marginBottom: 20 },
