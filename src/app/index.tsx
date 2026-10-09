@@ -197,6 +197,11 @@ export default function MapListScreen() {
           />
         )}
 
+        {/* Skapa en ny karta */}
+        <TouchableOpacity style={styles.createButton} onPress={() => router.push('/create')}>
+          <Feather name="plus" size={28} color={Colors.light.background} />
+        </TouchableOpacity>
+
         <Modal visible={showNameModal} animationType="fade" transparent={true}>
           <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <View style={styles.modalContent}>
@@ -259,6 +264,8 @@ const styles = StyleSheet.create({
 
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 50 },
   emptyText: { fontSize: 16, color: '#888', fontStyle: 'italic' },
+
+  createButton: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.light.primary, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { backgroundColor: '#FFF', width: '100%', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 10 },

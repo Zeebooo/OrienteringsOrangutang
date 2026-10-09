@@ -6,7 +6,16 @@ import { distanceInMeters } from '@/utilities/geo';
  * till appens format. Samma logik som scripts/getMap.js, men för appen.
  */
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+// Flera servrar kör samma Overpass-tjänst. Om en är nere eller överbelastad provas nästa.
+const OVERPASS_URLS = [
+	'https://overpass-api.de/api/interpreter',
+	'https://overpass.private.coffee/api/interpreter',
+	'https://overpass.kumi.systems/api/interpreter',
+	'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+
+// Hur länge vi väntar på en server innan vi ger upp och provar nästa
+const REQUEST_TIMEOUT_MS = 30_000;
 
 /** Största tillåtna sida på området. Större områden blir långsamma och kan ge timeout. */
 export const MAX_AREA_SIDE_M = 3000;
@@ -77,10 +86,31 @@ function buildQuery({ south, west, north, east }: BoundingBox): string {
 	`;
 }
 
+/** Provar servrarna i tur och ordning och returnerar första lyckade svaret. */
 async function fetchOverpass(query: string): Promise<OverpassResponse> {
+	let lastError = new Error('Kartservern är överbelastad just nu. Försök igen om en stund.');
+
+	for (const url of OVERPASS_URLS) {
+		try {
+			return await fetchFromServer(url, query);
+		} catch (error) {
+			console.warn(`Overpass: ${url} misslyckades – ${(error as Error).message}`);
+			lastError = error as Error;
+		}
+	}
+
+	// Alla servrar misslyckades
+	throw lastError;
+}
+
+async function fetchFromServer(url: string, query: string): Promise<OverpassResponse> {
+	// Avbryt anropet om servern inte svarar inom rimlig tid, så att nästa server hinner provas
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
 	let response: Response;
 	try {
-		response = await fetch(OVERPASS_URL, {
+		response = await fetch(url, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',
@@ -89,12 +119,15 @@ async function fetchOverpass(query: string): Promise<OverpassResponse> {
 				'User-Agent': 'OrienteringsOrangutang/1.0 (skolprojekt)',
 			},
 			body: `data=${encodeURIComponent(query)}`,
+			signal: controller.signal,
 		});
 	} catch {
 		throw new Error('Kunde inte nå kartservern. Kontrollera internetanslutningen.');
+	} finally {
+		clearTimeout(timeout);
 	}
 
-	if (response.status === 429 || response.status === 504) {
+	if (response.status === 429 || response.status >= 500) {
 		throw new Error('Kartservern är överbelastad just nu. Försök igen om en stund.');
 	}
 	if (!response.ok) {

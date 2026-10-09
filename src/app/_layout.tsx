@@ -87,6 +87,15 @@ export default function RootLayout() {
               tabBarStyle: { display: 'none' },
             }}
           />
+
+          {/* Dold vy: Skapa en karta (öppnas från kartlistan) */}
+          <Tabs.Screen
+            name="create"
+            options={{
+              href: null,
+              tabBarStyle: { display: 'none' },
+            }}
+          />
         </Tabs>
       </ProgressProvider>
     </AuthProvider>

@@ -48,7 +48,7 @@ export default function AppTabs() {
 
 			{/* Kartan */}
 			<Tabs.Screen
-				name="map"
+				name="createmap"
 				options={{
 					headerShown: false,
 					tabBarIcon: ({ color }) => (
