@@ -34,6 +34,14 @@ function getDifficultyInfo(difficulty: Difficulty) {
     }
 }
 
+function getDifficultyIcon(difficulty: Difficulty) {
+    switch (difficulty) {
+        case 'easy': return require('@/assets/HiFi/icon_easy.png');
+        case 'medium': return require('@/assets/HiFi/icon_medium.png');
+        case 'hard': return require('@/assets/HiFi/icon_hard.png');
+    }
+}
+
 function formatMsToTime(ms: number) {
     if (!ms || ms === 0) return "0:00";
     return formatSecondsToTime(Math.floor(ms / 1000));
@@ -73,7 +81,26 @@ export default function MapDetailScreen() {
     // --- ANIMATION & GESTURE LOGIC ---
     const panY = useRef(new Animated.Value(0)).current;
     const lastY = useRef(0); 
-    const hiddenHeightRef = useRef(200); // Standardhöjd att falla tillbaka på
+    const hiddenHeightRef = useRef(200); 
+
+    const animateMenuDown = () => {
+        setTimeout(() => {
+            const downPosition = hiddenHeightRef.current;
+            Animated.spring(panY, {
+                toValue: downPosition, 
+                useNativeDriver: false,
+            }).start();
+            lastY.current = downPosition;
+        }, 50);
+    };
+
+    const animateMenuUp = () => {
+        Animated.spring(panY, {
+            toValue: 0, 
+            useNativeDriver: false,
+        }).start();
+        lastY.current = 0;
+    };
     
     const panResponder = useRef(
         PanResponder.create({
@@ -90,7 +117,6 @@ export default function MapDetailScreen() {
             onPanResponderRelease: (_, gestureState) => {
                 panY.flattenOffset();
                 
-                // Använd den exakta höjden av de undre elementen + kortets paddingBottom (40)
                 const downPosition = hiddenHeightRef.current;
                 
                 if (gestureState.vy > 0.5 || gestureState.dy > 50) {
@@ -123,14 +149,9 @@ export default function MapDetailScreen() {
         extrapolate: 'clamp',
     });
 
-    // Se till att menyn fälls upp när vi byter karta ELLER när statusen ändras
     useEffect(() => {
-        Animated.spring(panY, {
-            toValue: 0,
-            useNativeDriver: false,
-        }).start();
-        lastY.current = 0;
-    }, [mapId, runStatus]);
+        animateMenuUp();
+    }, [mapId]);
 
     // --- DATABAS & EFFEKTER ---
     useEffect(() => {
@@ -226,13 +247,18 @@ export default function MapDetailScreen() {
                 setCurrentRun(null);
                 setElapsedSeconds(0);
                 setIsTimerRunning(false);
+                
+                animateMenuUp();
             } 
             else if (runStatus === 'started' && activeRunId) {
                 if (isTimerRunning) {
                     setIsTimerRunning(false);
                     await updateRunTime(activeRunId, elapsedSeconds * 1000);
+                    
+                    router.replace('/?tab=Påbörjade'); 
                 } else {
                     setIsTimerRunning(true);
+                    animateMenuDown();
                 }
             } 
             else {
@@ -242,6 +268,8 @@ export default function MapDetailScreen() {
                 setRunStatus('started');
                 setElapsedSeconds(0);
                 setIsTimerRunning(true);
+                
+                animateMenuDown();
             }
         } catch (e) {
             console.error("Fel vid hantering av runs:", e);
@@ -270,6 +298,8 @@ export default function MapDetailScreen() {
                     setCurrentRun(finishedRun);
                     setRunStatus('completed');
                     setShowResultModal(true);
+                    
+                    animateMenuUp();
                 }
             }
         } catch (e) {
@@ -342,14 +372,12 @@ export default function MapDetailScreen() {
                             <Text style={styles.tagText}>{map.controls.length} kontroller</Text>
                         </View>
                         <View style={styles.tag}>
-                            <Feather name="bar-chart-2" size={14} color="#000" style={styles.tagIcon} />
+                            <Image source={getDifficultyIcon(map.difficulty)} style={styles.tagImageIcon} />
                             <Text style={styles.tagText}>{getDifficultyInfo(map.difficulty)}</Text>
                         </View>
                     </View>
 
-                    {/* Allt som ska döljas mäter vi höjden på automatiskt */}
                     <View onLayout={(event) => {
-                        // Höjden på innehållet + 40 (som är kortets paddingBottom)
                         hiddenHeightRef.current = event.nativeEvent.layout.height + 40;
                     }}>
                         {runStatus === 'started' && (
@@ -411,7 +439,14 @@ export default function MapDetailScreen() {
                 <View style={styles.resultModalContainer}>
                     <SafeAreaView style={{flex: 1}} edges={['top', 'bottom']}>
                         <View style={styles.resultHeader}>
-                            <TouchableOpacity onPress={() => setShowResultModal(false)} style={styles.resultCloseButton}>
+                            {/* Krysset stänger modalen och skickar dig till Avklarade-tabben */}
+                            <TouchableOpacity 
+                                onPress={() => {
+                                    setShowResultModal(false);
+                                    router.replace('/?tab=Avklarade');
+                                }} 
+                                style={styles.resultCloseButton}
+                            >
                                 <Feather name="x" size={28} color="#000" />
                             </TouchableOpacity>
                             <Text style={styles.resultHeaderTitle}>Avklarad karta</Text>
@@ -495,7 +530,6 @@ const styles = StyleSheet.create({
     
     tagsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
     tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F5EC', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E0E0D1' },
-    tagIcon: { marginRight: 6 },
     tagImageIcon: { width: 14, height: 14, marginRight: 6, resizeMode: 'contain' },
     tagText: { fontSize: 11, fontWeight: '600', color: '#000' },
 

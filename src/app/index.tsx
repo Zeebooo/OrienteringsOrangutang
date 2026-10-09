@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { fetchMaps, MapWithState } from '@/services/mapsDAL';
 import { fetchProfile, updateProfile } from '@/services/profilesDAL';
 import { Feather } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,19 +23,20 @@ type TabType = 'Nya' | 'Påbörjade' | 'Avklarade';
 
 export default function MapListScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams(); // Fångar upp t.ex. ?tab=Påbörjade
   
   const [maps, setMaps] = useState<MapWithState[]>([]);
-  // Vi sätter loading till true från start, men låter den vara false vid bakåt-navigering 
-  // så slipper man se en laddningssnurra varje gång man går tillbaka.
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('Nya');
   
-  // Namn-modal states
+  // Sätter fliken automatiskt till 'Påbörjade' om parametern skickas med, annars 'Nya'
+  const [activeTab, setActiveTab] = useState<TabType>(
+    params.tab === 'Påbörjade' ? 'Påbörjade' : 'Nya'
+  );
+  
   const [showNameModal, setShowNameModal] = useState(false);
   const [userNameInput, setUserNameInput] = useState('');
   const [savingName, setSavingName] = useState(false);
 
-  // useFocusEffect körs VARJE gång skärmen visas, istället för bara en gång
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -61,7 +62,7 @@ export default function MapListScreen() {
       loadData();
 
       return () => {
-        isActive = false; // Undviker minnesläckor om komponenten avmonteras snabbt
+        isActive = false;
       };
     }, [])
   );
@@ -197,7 +198,6 @@ export default function MapListScreen() {
           />
         )}
 
-        {/* Skapa en ny karta */}
         <TouchableOpacity style={styles.createButton} onPress={() => router.push('/create')}>
           <Feather name="plus" size={28} color={Colors.light.background} />
         </TouchableOpacity>
