@@ -23,16 +23,21 @@ type TabType = 'Nya' | 'Påbörjade' | 'Avklarade';
 
 export default function MapListScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams(); // Fångar upp t.ex. ?tab=Påbörjade
+  const params = useLocalSearchParams(); 
   
   const [maps, setMaps] = useState<MapWithState[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Sätter fliken automatiskt till 'Påbörjade' om parametern skickas med, annars 'Nya'
   const [activeTab, setActiveTab] = useState<TabType>(
-    params.tab === 'Påbörjade' ? 'Påbörjade' : 'Nya'
+    params.tab === 'Påbörjade' ? 'Påbörjade' : 
+    params.tab === 'Avklarade' ? 'Avklarade' : 'Nya'
   );
   
+  // --- SÖK-STATES ---
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Namn-modal states
   const [showNameModal, setShowNameModal] = useState(false);
   const [userNameInput, setUserNameInput] = useState('');
   const [savingName, setSavingName] = useState(false);
@@ -85,11 +90,16 @@ export default function MapListScreen() {
     }
   };
 
+  // --- FILTRERING (FLIK + SÖKNING PÅ NAMN) ---
   const filteredMaps = maps.filter(map => {
-    if (activeTab === 'Nya') return map.state === 'not_started';
-    if (activeTab === 'Påbörjade') return map.state === 'started';
-    if (activeTab === 'Avklarade') return map.state === 'completed';
-    return true;
+    let matchesTab = true;
+    if (activeTab === 'Nya') matchesTab = map.state === 'not_started';
+    else if (activeTab === 'Påbörjade') matchesTab = map.state === 'started';
+    else if (activeTab === 'Avklarade') matchesTab = map.state === 'completed';
+
+    const matchesSearch = map.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return matchesTab && matchesSearch;
   });
 
   const renderDifficulty = (difficulty: string) => {
@@ -160,13 +170,35 @@ export default function MapListScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         
+        {/* HEADER / SÖKFÄLT */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerIcon}>
             <Feather name="menu" size={28} color={Colors.light.textMain} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Kartor</Text>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Feather name="search" size={28} color={Colors.light.textMain} />
+
+          {isSearching ? (
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Sök på kartans namn..."
+              placeholderTextColor="#888"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus={true}
+            />
+          ) : (
+            <Text style={styles.headerTitle}>Kartor</Text>
+          )}
+
+          <TouchableOpacity 
+            style={styles.headerIcon} 
+            onPress={() => {
+              if (isSearching) {
+                setSearchQuery(''); // Rensa sökningen när man stänger ner
+              }
+              setIsSearching(!isSearching);
+            }}
+          >
+            <Feather name={isSearching ? "x" : "search"} size={28} color={Colors.light.textMain} />
           </TouchableOpacity>
         </View>
 
@@ -240,6 +272,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
   headerIcon: { padding: 5 },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#000' },
+  searchInput: { flex: 1, height: 40, backgroundColor: '#EAEAE2', borderRadius: 8, paddingHorizontal: 12, fontSize: 16, color: '#000', marginHorizontal: 10 },
 
   tabContainer: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#D3D3D3' },
   tabButton: { flex: 1, paddingVertical: 12, alignItems: 'center' },
