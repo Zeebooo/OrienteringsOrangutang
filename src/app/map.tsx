@@ -127,6 +127,24 @@ export default function MapDetailScreen() {
     // Popupen som visas när en kontroll har tagits
     const [stampedPopup, setStampedPopup] = useState<{ index: number; elapsedMs: number } | null>(null);
 
+    // Skärmen är en flik och avmonteras inte när man lämnar den, så samma komponent
+    // återanvänds för nästa karta. Byts kartan nollställs allt från förra kartan direkt.
+    const [loadedMapId, setLoadedMapId] = useState(mapId);
+    if (mapId !== loadedMapId) {
+        setLoadedMapId(mapId);
+        setMap(null);
+        setError(null);
+        setRunStatus('not_started');
+        setActiveRunId(null);
+        setCurrentRun(null);
+        setElapsedSeconds(0);
+        setIsTimerRunning(false);
+        setShowResultModal(false);
+        setShowLocation(false);
+        setSelectedControlIndex(null);
+        setStampedPopup(null);
+    }
+
     // --- ANIMATION & GESTURE LOGIC ---
     const panY = useRef(new Animated.Value(0)).current;
     const lastY = useRef(0); 
@@ -205,10 +223,14 @@ export default function MapDetailScreen() {
     // --- DATABAS & EFFEKTER ---
     useEffect(() => {
         if (!mapId) return;
-        
+
+        // Byter man karta innan hämtningen är klar ska det gamla svaret inte skriva över den nya kartan
+        let cancelled = false;
+
         async function loadMapAndRun() {
             try {
                 const mapResult = await fetchMapWithTerrain(mapId);
+                if (cancelled) return;
                 if (mapResult) {
                     setMap(mapResult);
                 } else {
@@ -217,9 +239,11 @@ export default function MapDetailScreen() {
                 }
 
                 const { data: { user } } = await supabase.auth.getUser();
+                if (cancelled) return;
                 if (user) {
                     setUserId(user.id);
                     const userRuns = await fetchUserRuns(user.id);
+                    if (cancelled) return;
                     const runsForThisMap = userRuns.filter(r => r.mapId === mapId);
                     
                     if (runsForThisMap.some(r => r.isCompleted)) {
@@ -241,10 +265,14 @@ export default function MapDetailScreen() {
                     }
                 }
             } catch (e: any) {
-                setError(e.message);
+                if (!cancelled) setError(e.message);
             }
         }
         loadMapAndRun();
+
+        return () => {
+            cancelled = true;
+        };
     }, [mapId]);
 
     useEffect(() => {
