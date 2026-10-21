@@ -3,17 +3,13 @@ import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { MapSummary } from '@/components/CourseFacts';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 import { StepProgress } from '@/components/StepProgress';
 import { Colors } from '@/constants/theme';
 import { useCreateMap } from '@/context/CreateMapContext';
 import { createMap } from '@/services/mapsDAL';
 import type { Control } from '@/types';
 import { courseLengthInMeters } from '@/utilities/geo';
-
-const VISIBILITY_OPTIONS = [
-	{ isPrivate: true, title: 'Bara jag', subtitle: 'Kartan är endast synlig för dig' },
-	{ isPrivate: false, title: 'Alla', subtitle: 'Kartan blir synlig för alla' },
-];
 
 // Steg 4: granska kartan, välj vem som ser den och publicera
 export default function ReviewMapScreen() {
@@ -27,10 +23,10 @@ export default function ReviewMapScreen() {
 	if (!terrain || !info.difficulty) return <Redirect href="/create" />;
 	const difficulty = info.difficulty;
 
-	const canPublish = isPrivate !== null && !publishing;
+	const canPublish = !publishing;
 
 	async function handlePublish() {
-		if (!terrain || isPrivate === null || !canPublish) return;
+		if (!terrain || !canPublish) return;
 		setPublishing(true);
 		setError(null);
 		try {
@@ -66,24 +62,7 @@ export default function ReviewMapScreen() {
 
 			<View style={styles.card}>
 				<Text style={styles.question}>Vem kan se kartan?</Text>
-				{VISIBILITY_OPTIONS.map((option) => {
-					const selected = isPrivate === option.isPrivate;
-					return (
-						<TouchableOpacity
-							key={option.title}
-							style={[styles.option, selected && styles.optionSelected]}
-							onPress={() => setIsPrivate(option.isPrivate)}
-							accessibilityRole="radio"
-							accessibilityState={{ checked: selected }}
-						>
-							<View style={styles.radio}>{selected && <View style={styles.radioDot} />}</View>
-							<View>
-								<Text style={styles.optionTitle}>{option.title}</Text>
-								<Text style={styles.optionSubtitle}>{option.subtitle}</Text>
-							</View>
-						</TouchableOpacity>
-					);
-				})}
+				<PrivacyToggle isPrivate={isPrivate} onChange={setIsPrivate} />
 			</View>
 
 			{error && <Text style={styles.error}>Kunde inte publicera: {error}</Text>}
@@ -114,8 +93,6 @@ function withDefaultNames(controls: Control[]): Control[] {
 	}));
 }
 
-const RADIO_SIZE = 26;
-
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
@@ -141,43 +118,7 @@ const styles = StyleSheet.create({
 		fontSize: 18,
 		fontWeight: '600',
 		color: Colors.light.text,
-		marginLeft: 12,
-		marginBottom: 12,
-	},
-	option: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 16,
-		paddingVertical: 14,
-		paddingHorizontal: 12,
-		borderRadius: 8,
-	},
-	optionSelected: {
-		backgroundColor: Colors.light.beigeBg,
-	},
-	radio: {
-		width: RADIO_SIZE,
-		height: RADIO_SIZE,
-		borderRadius: RADIO_SIZE / 2,
-		borderWidth: 2,
-		borderColor: Colors.light.primary,
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-	radioDot: {
-		width: RADIO_SIZE / 2.2,
-		height: RADIO_SIZE / 2.2,
-		borderRadius: RADIO_SIZE,
-		backgroundColor: Colors.light.primary,
-	},
-	optionTitle: {
-		fontSize: 16,
-		fontWeight: '600',
-		color: Colors.light.text,
-	},
-	optionSubtitle: {
-		fontSize: 13,
-		color: Colors.light.textMuted,
+		marginBottom: 16,
 	},
 	error: {
 		color: Colors.light.danger,

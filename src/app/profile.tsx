@@ -1,3 +1,4 @@
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { deleteMap, fetchMapsByOwner, updateMapInfo } from '@/services/mapsDAL';
@@ -79,7 +80,8 @@ function getLevelStyle(level: number) {
 export default function ProfileScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  
+
+  // Profil-state
   const [userId, setUserId] = useState<string | null>(null);
   const [name, setName] = useState('');
   
@@ -88,22 +90,29 @@ export default function ProfileScreen() {
   const [controlsTaken, setControlsTaken] = useState(0);
   const [kmWalked, setKmWalked] = useState(0);
   
+  // State för att ändra namn
   const [showNameModal, setShowNameModal] = useState(false);
   const [editNameInput, setEditNameInput] = useState('');
   const [savingName, setSavingName] = useState(false);
 
+  // Historik-state
   const [runs, setRuns] = useState<RunSummary[]>([]);
+  // Kartor som användaren själv har skapat
   const [myMaps, setMyMaps] = useState<OMap[]>([]);
 
+  // State för att ändra namn och beskrivning på en egen karta
   const [editingMap, setEditingMap] = useState<OMap | null>(null);
   const [editMapName, setEditMapName] = useState('');
   const [editMapDescription, setEditMapDescription] = useState('');
   const [editMapIsPrivate, setEditMapIsPrivate] = useState(false);
   const [savingMap, setSavingMap] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  // Första trycket på "Ta bort" visar en bekräftelse, andra trycket tar bort
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deletingMap, setDeletingMap] = useState(false);
 
+  // Hämtar profil, lopp och egna kartor varje gång profilfliken visas,
+  // så att ny statistik och en nyss skapad karta syns direkt
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -207,6 +216,7 @@ export default function ProfileScreen() {
         description: editMapDescription.trim(),
         isPrivate: editMapIsPrivate,
       });
+      // Byt ut kartan i listan så att ändringen syns direkt
       setMyMaps((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
       setEditingMap(null);
     } catch (error) {
@@ -377,6 +387,7 @@ export default function ProfileScreen() {
                   <Feather name="chevron-right" size={20} color={Colors.light.textMuted} />
                 </View>
               </TouchableOpacity>
+              {/* Avdelare mellan raderna, men inte under den sista */}
               {index < myMaps.length - 1 && <View style={styles.separator} />}
             </View>
           ))}
@@ -420,16 +431,52 @@ export default function ProfileScreen() {
             <Text style={styles.inputLabel}>Kartans namn</Text>
             <TextInput style={styles.input} value={editMapName} onChangeText={setEditMapName} maxLength={40} />
             <Text style={styles.inputLabel}>Beskrivning</Text>
-            <TextInput style={[styles.input, styles.multilineInput]} value={editMapDescription} onChangeText={setEditMapDescription} multiline />
-            
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingMap(null)}>
-                <Text style={styles.cancelButtonText}>Avbryt</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.saveButton, !editMapName.trim() && styles.saveButtonDisabled]} onPress={handleSaveMap} disabled={!editMapName.trim() || savingMap}>
-                {savingMap ? <ActivityIndicator color={Colors.light.background} /> : <Text style={styles.saveButtonText}>Spara</Text>}
-              </TouchableOpacity>
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              value={editMapDescription}
+              onChangeText={setEditMapDescription}
+              placeholder="Fyll i en beskrivning för kartan"
+              placeholderTextColor={Colors.light.textMuted}
+              multiline
+            />
+
+            <View style={styles.privacyToggle}>
+              <PrivacyToggle isPrivate={editMapIsPrivate} onChange={setEditMapIsPrivate} />
             </View>
+
+            {mapError && <Text style={styles.errorText}>{mapError}</Text>}
+
+            {confirmDelete ? (
+              <>
+                <Text style={styles.confirmText}>
+                  {`Vill du ta bort ”${editingMap?.name}”? Kartan och alla lopp på den försvinner för alla. Det går inte att ångra.`}
+                </Text>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={() => setConfirmDelete(false)}>
+                    <Text style={styles.cancelButtonText}>Avbryt</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteMap} disabled={deletingMap}>
+                    {deletingMap ? <ActivityIndicator color={Colors.light.background} /> : <Text style={styles.saveButtonText}>Ta bort</Text>}
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingMap(null)}>
+                    <Text style={styles.cancelButtonText}>Avbryt</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.saveButton, !editMapName.trim() && styles.saveButtonDisabled]} onPress={handleSaveMap} disabled={!editMapName.trim() || savingMap}>
+                    {savingMap ? <ActivityIndicator color={Colors.light.background} /> : <Text style={styles.saveButtonText}>Spara</Text>}
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.deleteLink} onPress={() => setConfirmDelete(true)}>
+                  <Feather name="trash-2" size={16} color={Colors.light.danger} />
+                  <Text style={styles.deleteLinkText}>Ta bort karta</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -478,12 +525,19 @@ const styles = StyleSheet.create({
   separator: { height: 1, backgroundColor: Colors.light.border, marginLeft: 44 },
   logoutButton: { marginHorizontal: 20, paddingVertical: 15, borderRadius: 12, alignItems: 'center', marginBottom: 20 },
   logoutText: { color: Colors.light.danger, fontSize: 16, fontWeight: '600' },
+  // Styling för Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { backgroundColor: Colors.light.cardBg, width: '100%', borderRadius: 24, padding: 24 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.light.textMain, marginBottom: 16, textAlign: 'center' },
   input: { backgroundColor: Colors.light.beigeBg, borderWidth: 1, borderColor: Colors.light.border, borderRadius: 12, padding: 16, fontSize: 16, color: Colors.light.textMain, marginBottom: 24 },
   inputLabel: { fontSize: 14, fontWeight: '600', color: Colors.light.textMain, marginBottom: 8 },
   multilineInput: { minHeight: 100, textAlignVertical: 'top' },
+  errorText: { color: Colors.light.danger, marginBottom: 16 },
+  privacyToggle: { marginBottom: 24 },
+  confirmText: { fontSize: 15, color: Colors.light.textMain, textAlign: 'center', marginBottom: 20 },
+  deleteButton: { flex: 1, backgroundColor: Colors.light.danger, padding: 16, borderRadius: 12, alignItems: 'center' },
+  deleteLink: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 20 },
+  deleteLinkText: { color: Colors.light.danger, fontSize: 15, fontWeight: '600' },
   modalButtons: { flexDirection: 'row', gap: 12 },
   cancelButton: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center', backgroundColor: Colors.light.beigeBg },
   cancelButtonText: { color: Colors.light.textMain, fontSize: 16, fontWeight: '600' },

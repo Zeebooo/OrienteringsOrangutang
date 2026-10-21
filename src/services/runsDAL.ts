@@ -5,6 +5,10 @@ import { incrementUserStats } from './profilesDAL';
 
 export type RunState = 'started' | 'completed';
 
+/**
+ * En stämplad kontroll: kontrollen plus timerns värde när den togs.
+ * elapsedMs saknas på stämplingar som gjordes innan tiden började sparas.
+ */
 export type VisitedControl = Control & { elapsedMs?: number };
 
 type RunRow = {
@@ -26,6 +30,7 @@ export type RunSummary = {
     state: RunState;
 };
 
+// Vi hämtar bara de exakta kolumnerna som syns i din skiss
 const RUN_COLUMNS = 'id, user_id, map_id, elapsed_ms, visited_controls, completed';
 
 // Översätter databasens fältnamn till appens format

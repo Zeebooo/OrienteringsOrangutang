@@ -14,8 +14,8 @@ type CreateMapState = {
   terrain: Terrain | null;
   controls: Control[];
   info: MapInfo;
-  /** null tills användaren har valt på steget "Granska karta" */
-  isPrivate: boolean | null;
+  /** Väljs med togglen på steget "Granska karta". Kartan är publik om man inte slår på den. */
+  isPrivate: boolean;
   setTerrain: (terrain: Terrain) => void;
   /** Lägger till en kontroll och returnerar dess id. */
   addControl: (position: Coordinate) => string;
@@ -35,7 +35,7 @@ export function CreateMapProvider({ children }: { children: React.ReactNode }) {
   const [terrain, setTerrainState] = useState<Terrain | null>(null);
   const [controls, setControls] = useState<Control[]>([]);
   const [info, setInfo] = useState<MapInfo>(EMPTY_INFO);
-  const [isPrivate, setIsPrivate] = useState<boolean | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
 
   function setTerrain(newTerrain: Terrain) {
     setTerrainState(newTerrain);
