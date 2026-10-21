@@ -4,17 +4,17 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-	ActivityIndicator,
-	Animated,
-	Image,
-	Modal,
-	PanResponder,
-	Platform,
-	ScrollView,
-	StyleSheet, Text, TouchableOpacity,
-	View
+    ActivityIndicator,
+    Animated,
+    Image,
+    Modal,
+    PanResponder,
+    Platform,
+    ScrollView,
+    StyleSheet, Text, TouchableOpacity,
+    View
 } from 'react-native';
-import MapView, { Marker, type MapPressEvent } from 'react-native-maps';
+import MapView, { Callout, Marker, type LongPressEvent, type MapPressEvent } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { TerrainLayer } from '@/components/TerrainLayer';
@@ -94,6 +94,9 @@ export default function MapDetailScreen() {
     // Användarens position syns inte på kartan från början – det ska vara orientering, inte GPS-navigering
     const [showLocation, setShowLocation] = useState(false);
 
+    // Egen utplacerad pin
+    const [customPin, setCustomPin] = useState<{ latitude: number; longitude: number } | null>(null);
+
     // Egen kompass: kartans inbyggda försvinner när kartan pekar mot norr.
     // Riktningen ligger i ett Animated.Value, så kompassen kan vrida sig utan att hela skärmen ritas om.
     const mapRef = useRef<MapView>(null);
@@ -143,6 +146,7 @@ export default function MapDetailScreen() {
         setShowLocation(false);
         setSelectedControlIndex(null);
         setStampedPopup(null);
+        setCustomPin(null);
     }
 
     // --- ANIMATION & GESTURE LOGIC ---
@@ -508,6 +512,11 @@ export default function MapDetailScreen() {
         setSelectedControlIndex(null);
     };
 
+    const handleMapLongPress = (e: LongPressEvent) => {
+        setCustomPin(e.nativeEvent.coordinate);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+    };
+
     return (
         <View style={styles.container}>
             <MapView
@@ -519,6 +528,7 @@ export default function MapDetailScreen() {
                 onRegionChange={updateHeading}
                 onRegionChangeComplete={updateHeading}
                 onPress={handleMapPress}
+                onLongPress={handleMapLongPress} // Aktiverar långtryck för att placera pinnen
                 initialRegion={bboxToRegion(map.terrain.bbox)} 
                 cameraZoomRange={CAMERA_ZOOM_RANGE}
                 showsUserLocation={showLocation}
@@ -559,6 +569,25 @@ export default function MapDetailScreen() {
                         </Marker>
                     );
                 })}
+
+                {/* Egen pin: Använder standard-ikonen. onPress flyttas hit till Callout. */}
+                {customPin && (
+                    <Marker
+                        coordinate={customPin}
+                        draggable={true}
+                        onDragEnd={(e) => setCustomPin(e.nativeEvent.coordinate)}
+                    >
+                        <Callout tooltip onPress={() => setCustomPin(null)}>
+                            {/* Genom att lägga en View med marginal runt krysset flyttar vi upp det
+                                snett ovanför den förstorade pinnen, samtidigt som vi gör träffytan större */}
+                            <View style={styles.calloutWrapper}>
+                                <View style={styles.pinDeleteBadge}>
+                                    <Feather name="x" size={18} color="#FFF" />
+                                </View>
+                            </View>
+                        </Callout>
+                    </Marker>
+                )}
             </MapView>
 
             <SafeAreaView style={styles.safeArea} pointerEvents="box-none" edges={['top']}>
@@ -908,6 +937,26 @@ const styles = StyleSheet.create({
     markerNumber: { fontSize: 15, fontWeight: 'bold', color: CONTROL_ORANGE },
     markerNumberVisited: { color: '#FFF' },
     markerSelected: { transform: [{ scale: 1.2 }], borderWidth: 4 },
+
+    // Egen pin Callout styles
+    calloutWrapper: {
+        // Skapar en osynlig yta som trycker krysset uppåt och åt höger
+        paddingBottom: 25,
+        paddingLeft: 40,
+    },
+    pinDeleteBadge: {
+        backgroundColor: '#FF3B30',
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 5,
+    },
 
     controlInfoCard: {
         position: 'absolute',
