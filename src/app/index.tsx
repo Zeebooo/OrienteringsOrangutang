@@ -42,6 +42,7 @@ export default function MapListScreen() {
   const [userNameInput, setUserNameInput] = useState('');
   const [savingName, setSavingName] = useState(false);
 
+  // Hämtar aktuell kartstatus när användaren återvänder till listan
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
