@@ -1,12 +1,10 @@
 import { supabase } from '@/lib/supabase';
 import type { Control } from '@/types';
+import { fetchMapWithTerrain } from './mapsDAL';
+import { incrementUserStats } from './profilesDAL';
 
 export type RunState = 'started' | 'completed';
 
-/**
- * En stämplad kontroll: kontrollen plus timerns värde när den togs.
- * elapsedMs saknas på stämplingar som gjordes innan tiden började sparas.
- */
 export type VisitedControl = Control & { elapsedMs?: number };
 
 type RunRow = {
@@ -28,7 +26,6 @@ export type RunSummary = {
     state: RunState;
 };
 
-// Vi hämtar bara de exakta kolumnerna som syns i din skiss
 const RUN_COLUMNS = 'id, user_id, map_id, elapsed_ms, visited_controls, completed';
 
 function toRun(row: RunRow): RunSummary {
@@ -96,6 +93,18 @@ export async function updateVisitedControls(runId: string, visitedControls: Visi
 }
 
 export async function completeRun(runId: string, elapsedMs: number, finalControls: VisitedControl[]): Promise<RunSummary> {
+    // 1. Hämta loppet först för att få veta vilken användare och karta det gäller
+    const { data: runData, error: runError } = await supabase
+        .from('runs')
+        .select('user_id, map_id, completed')
+        .eq('id', runId)
+        .single();
+
+    if (runError) throw runError;
+
+    // Om loppet redan var slutfört tidigare ska vi inte räkna upp statistiken en extra gång
+    const wasAlreadyCompleted = runData.completed;
+
     const { data, error } = await supabase
         .from('runs')
         .update({
@@ -108,6 +117,20 @@ export async function completeRun(runId: string, elapsedMs: number, finalControl
         .single();
 
     if (error) throw error;
+
+    // 2. Om det är första gången loppet slutförs, uppdatera användarens statistik (kartor, kontroller, km)
+    if (!wasAlreadyCompleted && runData) {
+        try {
+            const mapData = await fetchMapWithTerrain(runData.map_id);
+            const km = mapData && mapData.distanceM ? mapData.distanceM / 1000 : 0;
+            const controlsCount = finalControls.length;
+
+            await incrementUserStats(runData.user_id, 1, controlsCount, km);
+        } catch (err) {
+            console.error('Kunde inte uppdatera användarens statistik vid mål:', err);
+        }
+    }
+
     return toRun(data as RunRow);
 }
 
