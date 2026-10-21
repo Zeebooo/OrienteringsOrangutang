@@ -31,6 +31,7 @@ export type RunSummary = {
 // Vi hämtar bara de exakta kolumnerna som syns i din skiss
 const RUN_COLUMNS = 'id, user_id, map_id, elapsed_ms, visited_controls, completed';
 
+// Översätter databasens fältnamn till appens format
 function toRun(row: RunRow): RunSummary {
     return {
         id: row.id,
@@ -53,6 +54,7 @@ export async function fetchUserRuns(userId: string): Promise<RunSummary[]> {
     return data.map((row) => toRun(row as RunRow));
 }
 
+// Hämtar ett oavslutat lopp,kan vara pausat eller pågående
 export async function fetchActiveRun(userId: string, mapId: string): Promise<RunSummary | null> {
     const { data, error } = await supabase
         .from('runs')
@@ -83,6 +85,7 @@ export async function createRun(userId: string, mapId: string): Promise<RunSumma
     return toRun(data as RunRow);
 }
 
+// Ersätter hela listan med stämplade kontroller
 export async function updateVisitedControls(runId: string, visitedControls: VisitedControl[]): Promise<RunSummary> {
     const { data, error } = await supabase
         .from('runs')
@@ -111,6 +114,7 @@ export async function completeRun(runId: string, elapsedMs: number, finalControl
     return toRun(data as RunRow);
 }
 
+// Tar bort loppet permanent
 export async function abandonRun(runId: string): Promise<void> {
     const { error } = await supabase
         .from('runs')
@@ -120,6 +124,7 @@ export async function abandonRun(runId: string): Promise<void> {
     if (error) throw error;
 }
 
+// Sparar tiden i millisekunder utan att ändra loppets status
 export async function updateRunTime(runId: string, elapsedMs: number): Promise<void> {
     const { error } = await supabase
         .from('runs')

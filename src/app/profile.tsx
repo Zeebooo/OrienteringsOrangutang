@@ -69,6 +69,7 @@ export default function ProfileScreen() {
     }, [userId]),
   );
 
+  // Hämtar profil och lopp när skärmen monteras
   useEffect(() => {
     async function loadProfileData() {
       try {
