@@ -31,3 +31,26 @@ export function courseLengthInMeters(controls: Control[]): number | null {
 export function bboxCenter({ south, west, north, east }: BoundingBox): Coordinate {
 	return { latitude: (south + north) / 2, longitude: (west + east) / 2 };
 }
+
+/** Om punkten ligger inom bounding boxen (kanten räknas som innanför). */
+export function isInsideBbox(point: Coordinate, { south, west, north, east }: BoundingBox): boolean {
+	return point.latitude >= south && point.latitude <= north && point.longitude >= west && point.longitude <= east;
+}
+
+/** Närmaste punkt inom bounding boxen. En punkt utanför flyttas in till kanten. */
+export function clampToBbox(point: Coordinate, { south, west, north, east }: BoundingBox): Coordinate {
+	return {
+		latitude: Math.min(north, Math.max(south, point.latitude)),
+		longitude: Math.min(east, Math.max(west, point.longitude)),
+	};
+}
+
+/** Bounding boxens fyra hörn i ordning, t.ex. för att rita dess kant. */
+export function bboxCorners({ south, west, north, east }: BoundingBox): Coordinate[] {
+	return [
+		{ latitude: north, longitude: west },
+		{ latitude: north, longitude: east },
+		{ latitude: south, longitude: east },
+		{ latitude: south, longitude: west },
+	];
+}

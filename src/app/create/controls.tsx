@@ -1,6 +1,7 @@
 import { Redirect, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+	ActivityIndicator,
 	KeyboardAvoidingView,
 	Platform,
 	StyleSheet,
@@ -10,27 +11,88 @@ import {
 	View,
 } from 'react-native';
 import MapView, { Marker, Polyline, type MapPressEvent } from 'react-native-maps';
+import { captureRef } from 'react-native-view-shot';
 
 import { StepProgress } from '@/components/StepProgress';
 import { TerrainLayer } from '@/components/TerrainLayer';
 import { Colors } from '@/constants/theme';
 import { useCreateMap } from '@/context/CreateMapContext';
-import type { Control } from '@/types';
+import type { BoundingBox, Control } from '@/types';
 import { bboxToRegion } from '@/utilities/bboxToRegion';
-import { courseLengthInMeters } from '@/utilities/geo';
+import { bboxCorners, clampToBbox, courseLengthInMeters, isInsideBbox } from '@/utilities/geo';
 
 // Banan ritas i magenta, som på riktiga orienteringskartor
 const COURSE_COLOR = '#C0328A';
+// Knallorange så att kanten syns mot både grön terräng och grå byggnader (samma orange som kontrollerna i kartvyn)
+const AREA_BORDER_COLOR = '#FF6B00';
 const MIN_CONTROLS = 2;
+
+// Bilden till kartlistan: bredd i pixlar, och hur länge terrängen får på sig att ritas innan den tas
+const THUMBNAIL_WIDTH = 300;
+const TERRAIN_RENDER_DELAY_MS = 2000;
+// Längsta tid kontrollerna kan vara låsta, ifall kartan aldrig blir redo
+const MAX_CAPTURE_WAIT_MS = 6000;
 
 // Steg 2: tryck på kartan för att lägga till en kontroll, tryck på en kontroll för att redigera den
 export default function PlaceControlsScreen() {
 	const router = useRouter();
-	const { terrain, controls, addControl, moveControl, updateControl, removeControl } = useCreateMap();
+	const { terrain, controls, addControl, moveControl, updateControl, removeControl, setThumbnail } = useCreateMap();
 
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	// Skiljer en nyss tillagd kontroll från en befintlig som redigeras (styr knapptexten)
 	const [isNew, setIsNew] = useState(false);
+	// Visar en varning när man tryckt utanför området
+	const [tappedOutside, setTappedOutside] = useState(false);
+
+	// --- Bild på terrängen till kartlistan ---
+	// Vyn runt kartan fotograferas. Stegindikatorn och panelen ligger utanför den och kommer inte med.
+	const mapContainerRef = useRef<View>(null);
+	const mapSizeRef = useRef<{ width: number; height: number } | null>(null);
+	const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	// Medan bilden tas går det inte att lägga ut kontroller, så att de inte kommer med på bilden.
+	// Finns det redan kontroller (t.ex. när man kommer tillbaka till steget) tas ingen ny bild.
+	const [capturing, setCapturing] = useState(controls.length === 0);
+
+	useEffect(() => {
+		// Spärr: blir kartan aldrig redo ska man ändå kunna fortsätta – då används bilden från "Välj område"
+		// (Har bilden redan börjat tas låses kontrollerna upp när den är klar i stället.)
+		const fallbackTimer = setTimeout(() => {
+			if (!snapshotTimerRef.current) setCapturing(false);
+		}, MAX_CAPTURE_WAIT_MS);
+
+		// Lämnar man steget innan bilden tagits ska den inte tas
+		return () => {
+			clearTimeout(fallbackTimer);
+			if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
+		};
+	}, []);
+
+	function handleMapReady() {
+		if (!capturing) return;
+
+		// Kartan är redo, men kartbilderna och terrängen behöver en stund till för att ritas
+		snapshotTimerRef.current = setTimeout(async () => {
+			const size = mapSizeRef.current;
+			try {
+				if (size) {
+					const base64 = await captureRef(mapContainerRef, {
+						format: 'jpg',
+						quality: 0.7,
+						result: 'base64',
+						width: THUMBNAIL_WIDTH,
+						height: Math.round(THUMBNAIL_WIDTH * (size.height / size.width)),
+					});
+					setThumbnail(base64);
+				}
+			} catch (e) {
+				// Bilden från "Välj område" finns kvar som reserv
+				console.warn('Kunde inte ta bild av terrängen:', e);
+			} finally {
+				setCapturing(false);
+			}
+		}, TERRAIN_RENDER_DELAY_MS);
+	}
 
 	// Hamnar man här utan terräng (t.ex. efter en omladdning) börjar man om från steg 1
 	if (!terrain) return <Redirect href="/create" />;
@@ -38,14 +100,25 @@ export default function PlaceControlsScreen() {
 	const selectedIndex = controls.findIndex((c) => c.id === selectedId);
 	const selected = selectedIndex >= 0 ? controls[selectedIndex] : null;
 
+	// Området man valde i steg 1 – kontrollerna måste ligga inom det
+	const area = terrain.bbox;
+
 	function handleMapPress(e: MapPressEvent) {
 		// På Android skickas även tryck på en markör till kartan – de ska inte skapa en ny kontroll
 		if (e.nativeEvent.action === 'marker-press') return;
+		// Bilden till kartlistan tas fortfarande
+		if (capturing) return;
 
 		if (selectedId) {
 			setSelectedId(null); // ett tryck utanför stänger redigeringen
 			return;
 		}
+		// Utanför området finns ingen terräng, så där går det inte att lägga kontroller
+		if (!isInsideBbox(e.nativeEvent.coordinate, area)) {
+			setTappedOutside(true);
+			return;
+		}
+		setTappedOutside(false);
 		const id = addControl(e.nativeEvent.coordinate);
 		setSelectedId(id);
 		setIsNew(true);
@@ -66,37 +139,58 @@ export default function PlaceControlsScreen() {
 
 	return (
 		<View style={styles.container}>
-			<MapView
+			{/* collapsable={false}: på Android tas annars vyer utan eget utseende bort, och då finns inget att fotografera */}
+			<View
+				ref={mapContainerRef}
 				style={StyleSheet.absoluteFill}
-				showsPointsOfInterests={false}
-				initialRegion={bboxToRegion(terrain.bbox)}
-				onPress={handleMapPress}
-				rotateEnabled={false}
-				pitchEnabled={false}
-				userInterfaceStyle="light"
+				collapsable={false}
+				onLayout={(e) => (mapSizeRef.current = e.nativeEvent.layout)}
 			>
-				<TerrainLayer terrain={terrain} />
+				<MapView
+					style={StyleSheet.absoluteFill}
+					showsPointsOfInterests={false}
+					initialRegion={bboxToRegion(terrain.bbox)}
+					onPress={handleMapPress}
+					// onMapReady, inte onMapLoaded – onMapLoaded finns bara för Google Maps på iOS
+					onMapReady={handleMapReady}
+					rotateEnabled={false}
+					pitchEnabled={false}
+					userInterfaceStyle="light"
+				>
+					<TerrainLayer terrain={terrain} />
 
-				{/* Linje mellan kontrollerna i den ordning de ska tas */}
-				{controls.length >= 2 && <Polyline coordinates={controls} strokeColor={COURSE_COLOR} strokeWidth={3} />}
+					{/* Områdets kant, så man ser var kontrollerna får ligga. Ritas inte medan bilden till kartlistan tas. */}
+					{!capturing && (
+						<Polyline
+							coordinates={[...bboxCorners(area), bboxCorners(area)[0]]}
+							strokeColor={AREA_BORDER_COLOR}
+							strokeWidth={4}
+							lineDashPattern={[10, 6]}
+						/>
+					)}
 
-				{controls.map((control, index) => (
-					<Marker
-						key={control.id}
-						coordinate={control}
-						draggable
-						onDragEnd={(e) => moveControl(control.id, e.nativeEvent.coordinate)}
-						onPress={() => handleMarkerPress(control.id)}
-						anchor={{ x: 0.5, y: 0.5 }}
-					>
-						<View style={[styles.control, control.id === selectedId && styles.controlSelected]}>
-							<Text style={[styles.controlNumber, control.id === selectedId && styles.controlNumberSelected]}>
-								{index + 1}
-							</Text>
-						</View>
-					</Marker>
-				))}
-			</MapView>
+					{/* Linje mellan kontrollerna i den ordning de ska tas */}
+					{controls.length >= 2 && <Polyline coordinates={controls} strokeColor={COURSE_COLOR} strokeWidth={3} />}
+
+					{controls.map((control, index) => (
+						<Marker
+							key={control.id}
+							coordinate={control}
+							draggable
+							// Drar man kontrollen utanför området hamnar den vid kanten
+							onDragEnd={(e) => moveControl(control.id, clampToBbox(e.nativeEvent.coordinate, area))}
+							onPress={() => handleMarkerPress(control.id)}
+							anchor={{ x: 0.5, y: 0.5 }}
+						>
+							<View style={[styles.control, control.id === selectedId && styles.controlSelected]}>
+								<Text style={[styles.controlNumber, control.id === selectedId && styles.controlNumberSelected]}>
+									{index + 1}
+								</Text>
+							</View>
+						</Marker>
+					))}
+				</MapView>
+			</View>
 
 			<StepProgress current={2} total={4} style={styles.steps} />
 
@@ -113,10 +207,16 @@ export default function PlaceControlsScreen() {
 							control={selected}
 							number={selectedIndex + 1}
 							isNew={isNew}
+							area={area}
 							onChange={(changes) => updateControl(selected.id, changes)}
 							onDone={() => setSelectedId(null)}
 							onRemove={handleRemove}
 						/>
+					) : capturing ? (
+						<View style={styles.capturing}>
+							<ActivityIndicator color={Colors.light.textMain} />
+							<Text style={styles.hint}>Förbereder kartan…</Text>
+						</View>
 					) : (
 						<>
 							<Text style={styles.hint}>
@@ -124,6 +224,9 @@ export default function PlaceControlsScreen() {
 									? 'Tryck på kartan för att placera första kontrollen'
 									: 'Tryck på kartan för att lägga till, eller på en kontroll för att ändra den'}
 							</Text>
+							{tappedOutside && (
+								<Text style={styles.warning}>Kontrollerna måste ligga inom det streckade området</Text>
+							)}
 							<Text style={styles.info}>
 								{controls.length} kontroller
 								{lengthM !== null && ` · ${(lengthM / 1000).toFixed(1).replace('.', ',')} km`}
@@ -149,12 +252,14 @@ type ControlEditorProps = {
 	control: Control;
 	number: number;
 	isNew: boolean;
+	/** Området kontrollen måste ligga inom – koordinatfälten tar bara emot värden inom det */
+	area: BoundingBox;
 	onChange: (changes: Partial<Omit<Control, 'id'>>) => void;
 	onDone: () => void;
 	onRemove: () => void;
 };
 
-function ControlEditor({ control, number, isNew, onChange, onDone, onRemove }: ControlEditorProps) {
+function ControlEditor({ control, number, isNew, area, onChange, onDone, onRemove }: ControlEditorProps) {
 	return (
 		<>
 			<Text style={styles.title}>Kontroll {number}</Text>
@@ -174,15 +279,15 @@ function ControlEditor({ control, number, isNew, onChange, onDone, onRemove }: C
 				<CoordinateInput
 					label="Latitud"
 					value={control.latitude}
-					min={-90}
-					max={90}
+					min={area.south}
+					max={area.north}
 					onChange={(latitude) => onChange({ latitude })}
 				/>
 				<CoordinateInput
 					label="Longitud"
 					value={control.longitude}
-					min={-180}
-					max={180}
+					min={area.west}
+					max={area.east}
 					onChange={(longitude) => onChange({ longitude })}
 				/>
 			</View>
@@ -315,10 +420,23 @@ const styles = StyleSheet.create({
 	coordinate: {
 		flex: 1,
 	},
+	capturing: {
+		flexDirection: 'row',
+		justifyContent: 'center',
+		alignItems: 'center',
+		gap: 10,
+		paddingVertical: 12,
+	},
 	hint: {
 		fontSize: 16,
 		textAlign: 'center',
 		color: Colors.light.textMain,
+	},
+	warning: {
+		fontSize: 14,
+		fontWeight: '600',
+		textAlign: 'center',
+		color: Colors.light.danger,
 	},
 	hintSmall: {
 		fontSize: 12,

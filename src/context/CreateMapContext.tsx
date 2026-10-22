@@ -12,7 +12,10 @@ export type MapInfo = {
 
 type CreateMapState = {
   terrain: Terrain | null;
-  /** Bild på området (JPG i base64) från steget "Välj område". null om ingen bild kunde tas. */
+  /**
+   * Bild på området (JPG i base64) för kartlistan. Tas först i "Välj område" och byts sedan ut mot
+   * en med terrängen i "Placera kontroller". null om ingen bild kunde tas.
+   */
   thumbnail: string | null;
   controls: Control[];
   info: MapInfo;
@@ -20,6 +23,8 @@ type CreateMapState = {
   isPrivate: boolean;
   /** Byter område. Bilden hör till området, så den sätts samtidigt. */
   setTerrain: (terrain: Terrain, thumbnail: string | null) => void;
+  /** Byter ut bilden, t.ex. mot en med terrängen från steget "Placera kontroller". */
+  setThumbnail: (thumbnail: string) => void;
   /** Lägger till en kontroll och returnerar dess id. */
   addControl: (position: Coordinate) => string;
   moveControl: (id: string, position: Coordinate) => void;
@@ -75,6 +80,7 @@ export function CreateMapProvider({ children }: { children: React.ReactNode }) {
         info,
         isPrivate,
         setTerrain,
+        setThumbnail,
         addControl,
         moveControl,
         updateControl,

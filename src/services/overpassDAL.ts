@@ -7,11 +7,12 @@ import { distanceInMeters } from '@/utilities/geo';
  */
 
 // Flera servrar kör samma Overpass-tjänst. Om en är nere eller överbelastad provas nästa.
+// maps.mail.ru ligger först eftersom den har svarat pålitligast för oss.
 const OVERPASS_URLS = [
+	'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 	'https://overpass-api.de/api/interpreter',
 	'https://overpass.private.coffee/api/interpreter',
 	'https://overpass.kumi.systems/api/interpreter',
-	'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
 
 // Hur länge vi väntar på en server innan vi ger upp och provar nästa

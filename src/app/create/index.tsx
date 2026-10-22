@@ -115,6 +115,9 @@ export default function SelectAreaScreen() {
 				showsUserLocation
 				rotateEnabled={false} // bounding boxen är alltid rak mot norr
 				pitchEnabled={false}
+				// Kartan står still medan terrängen hämtas, så att området man valt inte ändras under tiden
+				scrollEnabled={!loading}
+				zoomEnabled={!loading}
 				userInterfaceStyle="light"
 			/>
 
