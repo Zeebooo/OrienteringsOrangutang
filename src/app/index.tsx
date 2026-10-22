@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { fetchMaps, MapWithState } from '@/services/mapsDAL';
 import { fetchProfile, updateProfile } from '@/services/profilesDAL';
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -142,8 +143,13 @@ export default function MapListScreen() {
         onPress={() => router.push(`/map?id=${item.id}`)}
       >
         <View style={styles.cardContent}>
+          {/* Bild på området om kartan har en, annars en ikon (äldre kartor saknar bild) */}
           <View style={styles.imagePlaceholder}>
-            <Feather name="map" size={24} color={Colors.light.accent} />
+            {item.thumbnailUrl ? (
+              <Image source={item.thumbnailUrl} style={styles.thumbnail} contentFit="cover" transition={150} />
+            ) : (
+              <Feather name="map" size={24} color={Colors.light.accent} />
+            )}
           </View>
 
           <View style={styles.cardTextContainer}>
@@ -284,7 +290,8 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 20, paddingBottom: 40 },
   card: { backgroundColor: '#FFF', borderRadius: 8, marginBottom: 16, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   cardContent: { flexDirection: 'row', alignItems: 'center' },
-  imagePlaceholder: { width: 70, height: 70, backgroundColor: '#E5E8DD', borderRadius: 6, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  imagePlaceholder: { width: 70, height: 70, backgroundColor: '#E5E8DD', borderRadius: 6, justifyContent: 'center', alignItems: 'center', marginRight: 16, overflow: 'hidden' },
+  thumbnail: { width: '100%', height: '100%' },
   cardTextContainer: { flex: 1, justifyContent: 'center' },
   cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#000', marginBottom: 2 },
   cardInfoText: { fontSize: 12, color: '#666', marginBottom: 2 },

@@ -44,5 +44,6 @@ export type OMap = {
 	distanceM: number | null; // banans längd i meter, null om färre än 2 kontroller
 	center: Coordinate; // för sortering efter avstånd
 	isPrivate: boolean; // true = bara skaparen ser kartan
+	thumbnailUrl: string | null; // bild på området från när kartan skapades, null för äldre kartor
 	terrain?: Terrain; // finns bara när kartan hämtats med terräng
 };

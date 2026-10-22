@@ -16,6 +16,7 @@ type MapRow = {
 	center_lat: number;
 	center_lng: number;
 	isPrivate: boolean;
+	thumbnail_url: string | null;
 };
 
 export type MapState = 'not_started' | 'started' | 'completed';
@@ -33,10 +34,19 @@ export type NewMap = {
 	controls: Control[];
 	terrain: Terrain;
 	isPrivate: boolean;
+	/** Bild på området som JPG i base64, från steget "Välj område". null om ingen bild kunde tas. */
+	thumbnailBase64: string | null;
 };
 
 // Kolumnerna i `maps`. Skrivs ut i stället för '*' så att det syns exakt vad som hämtas.
-const MAP_COLUMNS = 'id, owner_id, name, description, difficulty, controls, distance, center_lat, center_lng, isPrivate';
+const MAP_COLUMNS = 'id, owner_id, name, description, difficulty, controls, distance, center_lat, center_lng, isPrivate, thumbnail_url';
+
+// Bucketen i Supabase Storage där kartbilderna ligger. Varje bild sparas som "<ägarens id>/<kartans id>.jpg".
+const THUMBNAIL_BUCKET = 'map-thumbnails';
+
+function thumbnailPath(ownerId: string, mapId: string) {
+	return `${ownerId}/${mapId}.jpg`;
+}
 
 // ─── Omvandling databas → app ─────────────────────────────────────────────
 
@@ -51,6 +61,7 @@ function toMap(row: MapRow): OMap {
 		distanceM: row.distance,
 		center: { latitude: row.center_lat, longitude: row.center_lng },
 		isPrivate: row.isPrivate,
+		thumbnailUrl: row.thumbnail_url,
 	};
 }
 
@@ -171,7 +182,38 @@ export async function createMap(input: NewMap): Promise<OMap> {
 		throw terrainError;
 	}
 
+	if (input.thumbnailBase64) {
+		try {
+			map.thumbnail_url = await uploadThumbnail(map, input.thumbnailBase64);
+		} catch (e) {
+			// Kartan fungerar utan bild – då visas bara ikonen i listan
+			console.warn('Kunde inte spara kartans bild:', e);
+		}
+	}
+
 	return toMap(map);
+}
+
+/** Laddar upp bilden till Storage och sparar dess adress på kartan. Returnerar adressen. */
+async function uploadThumbnail(map: MapRow, base64: string): Promise<string> {
+	// base64-text → bytes, som är vad Storage vill ha
+	const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+	const path = thumbnailPath(map.owner_id, map.id);
+
+	const { error: uploadError } = await supabase.storage
+		.from(THUMBNAIL_BUCKET)
+		.upload(path, bytes, { contentType: 'image/jpeg' });
+	if (uploadError) throw uploadError;
+
+	const { data } = supabase.storage.from(THUMBNAIL_BUCKET).getPublicUrl(path);
+
+	const { error: updateError } = await supabase
+		.from('maps')
+		.update({ thumbnail_url: data.publicUrl })
+		.eq('id', map.id);
+	if (updateError) throw updateError;
+
+	return data.publicUrl;
 }
 
 /** Ändrar namn, beskrivning och synlighet på en karta. RLS gör att bara kartans ägare kan göra det. */
@@ -192,10 +234,24 @@ export async function updateMapInfo(
 	return toMap(data as MapRow);
 }
 
-/** Tar bort en karta. Terrängen och alla lopp försvinner via "on delete cascade". */
+/** Tar bort en karta. Terrängen och alla lopp försvinner via "on delete cascade", bilden tas bort här. */
 export async function deleteMap(mapId: string): Promise<void> {
-	const { data, error } = await supabase.from('maps').delete().eq('id', mapId).select('id');
+	const { data, error } = await supabase
+		.from('maps')
+		.delete()
+		.eq('id', mapId)
+		.select('id, owner_id, thumbnail_url');
 	if (error) throw error;
 	// RLS ger inget fel när en borttagning nekas – den tar bara bort noll rader
 	if (!data || data.length === 0) throw new Error('Du har inte behörighet att ta bort den här kartan');
+
+	const deleted = data[0];
+	if (deleted.thumbnail_url) {
+		// Storage rensas inte av "on delete cascade", så bilden tas bort för sig.
+		// Misslyckas det är kartan ändå borta – bilden blir bara liggande.
+		const { error: removeError } = await supabase.storage
+			.from(THUMBNAIL_BUCKET)
+			.remove([thumbnailPath(deleted.owner_id, deleted.id)]);
+		if (removeError) console.warn('Kunde inte ta bort kartans bild:', removeError);
+	}
 }

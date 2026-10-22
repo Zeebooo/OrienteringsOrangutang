@@ -10,7 +10,8 @@ import { useCreateMap } from '@/context/CreateMapContext';
 import campusTerrain from '@/data/terrain/campus.json';
 import { useLocation } from '@/hooks/use-location';
 import { bboxSizeInMeters, fetchTerrainForArea, MAX_AREA_SIDE_M } from '@/services/overpassDAL';
-import type { Terrain } from '@/types';
+import type { BoundingBox, Terrain } from '@/types';
+import { bboxToRegion } from '@/utilities/bboxToRegion';
 import { rectToBbox, type ScreenRect } from '@/utilities/regionToBbox';
 
 // Hur stort område som visas när kartan flyttas till användarens position (≈ 1 km)
@@ -20,6 +21,9 @@ const START_DELTA = 0.015;
 const TOP_SPACE = 64;
 const FRAME_MARGIN = 28;
 const DIM_COLOR = 'rgba(0, 0, 0, 0.25)';
+
+// Bredden på bilden som visas i kartlistan. Lite större än där den visas, så den blir skarp.
+const THUMBNAIL_WIDTH = 300;
 
 // Steg 1: ramen ligger still på skärmen och användaren flyttar kartan under den.
 // Det som syns innanför ramen blir kartans bounding box.
@@ -54,8 +58,10 @@ export default function SelectAreaScreen() {
 		setLoading(true);
 		setError(null);
 		try {
+			// Bilden tas först, medan kartan fortfarande visar området
+			const thumbnail = frame ? await takeAreaSnapshot(bbox, frame) : null;
 			const terrain = await fetchTerrainForArea(bbox);
-			setTerrain(terrain);
+			setTerrain(terrain, thumbnail);
 			router.push('/create/controls');
 		} catch (e) {
 			setError((e as Error).message);
@@ -64,9 +70,32 @@ export default function SelectAreaScreen() {
 		}
 	}
 
+	/**
+	 * Tar en bild av kartan som visas i kartlistan. Returnerar JPG i base64, eller null om det inte gick –
+	 * kartan ska gå att skapa även utan bild.
+	 */
+	async function takeAreaSnapshot(area: BoundingBox, frameRect: ScreenRect): Promise<string | null> {
+		try {
+			return (
+				(await mapRef.current?.takeSnapshot({
+					width: THUMBNAIL_WIDTH,
+					height: Math.round(THUMBNAIL_WIDTH * (frameRect.height / frameRect.width)),
+					// Bara iOS: bilden visar exakt området i ramen. Android tar hela kartvyn.
+					region: bboxToRegion(area),
+					format: 'jpg',
+					quality: 0.7,
+					result: 'base64',
+				})) ?? null
+			);
+		} catch (e) {
+			console.warn('Kunde inte ta bild av området:', e);
+			return null;
+		}
+	}
+
 	// Bara under utveckling: hoppa över Overpass och använd en sparad terräng
 	function applyTestTerrain() {
-		setTerrain(campusTerrain as Terrain);
+		setTerrain(campusTerrain as Terrain, null);
 		router.push('/create/controls');
 	}
 

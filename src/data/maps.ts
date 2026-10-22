@@ -7,7 +7,7 @@ import campusTerrain from './terrain/campus.json';
 const LOCAL_OWNER = 'local';
 
 // Det man skriver för hand. Mittpunkt och längd räknas ut från terrängen och kontrollerna.
-type MapInput = Omit<OMap, 'ownerId' | 'center' | 'distanceM' | 'isPrivate' | 'terrain'> & {
+type MapInput = Omit<OMap, 'ownerId' | 'center' | 'distanceM' | 'isPrivate' | 'thumbnailUrl' | 'terrain'> & {
 	terrain: Terrain;
 };
 
@@ -18,6 +18,7 @@ function defineMap(input: MapInput): OMap {
 		center: bboxCenter(input.terrain.bbox),
 		distanceM: courseLengthInMeters(input.controls),
 		isPrivate: false,
+		thumbnailUrl: null,
 	};
 }
 

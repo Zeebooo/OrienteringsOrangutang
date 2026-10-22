@@ -14,7 +14,7 @@ import { courseLengthInMeters } from '@/utilities/geo';
 // Steg 4: granska kartan, välj vem som ser den och publicera
 export default function ReviewMapScreen() {
 	const router = useRouter();
-	const { terrain, controls, info, isPrivate, setIsPrivate } = useCreateMap();
+	const { terrain, thumbnail, controls, info, isPrivate, setIsPrivate } = useCreateMap();
 
 	const [publishing, setPublishing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -37,6 +37,7 @@ export default function ReviewMapScreen() {
 				controls: withDefaultNames(controls),
 				terrain,
 				isPrivate,
+				thumbnailBase64: thumbnail,
 			});
 			// replace: tillbaka-knappen ska inte leda till granskningen igen
 			router.replace('/create/published');

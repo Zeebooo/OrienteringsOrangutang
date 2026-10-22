@@ -12,11 +12,14 @@ export type MapInfo = {
 
 type CreateMapState = {
   terrain: Terrain | null;
+  /** Bild på området (JPG i base64) från steget "Välj område". null om ingen bild kunde tas. */
+  thumbnail: string | null;
   controls: Control[];
   info: MapInfo;
   /** Väljs med togglen på steget "Granska karta". Kartan är publik om man inte slår på den. */
   isPrivate: boolean;
-  setTerrain: (terrain: Terrain) => void;
+  /** Byter område. Bilden hör till området, så den sätts samtidigt. */
+  setTerrain: (terrain: Terrain, thumbnail: string | null) => void;
   /** Lägger till en kontroll och returnerar dess id. */
   addControl: (position: Coordinate) => string;
   moveControl: (id: string, position: Coordinate) => void;
@@ -33,12 +36,14 @@ const CreateMapContext = createContext<CreateMapState | null>(null);
 
 export function CreateMapProvider({ children }: { children: React.ReactNode }) {
   const [terrain, setTerrainState] = useState<Terrain | null>(null);
+  const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [controls, setControls] = useState<Control[]>([]);
   const [info, setInfo] = useState<MapInfo>(EMPTY_INFO);
   const [isPrivate, setIsPrivate] = useState(false);
 
-  function setTerrain(newTerrain: Terrain) {
+  function setTerrain(newTerrain: Terrain, newThumbnail: string | null) {
     setTerrainState(newTerrain);
+    setThumbnail(newThumbnail);
     setControls([]); // nytt område → gamla kontroller ligger inte längre på kartan
   }
 
@@ -65,6 +70,7 @@ export function CreateMapProvider({ children }: { children: React.ReactNode }) {
     <CreateMapContext.Provider
       value={{
         terrain,
+        thumbnail,
         controls,
         info,
         isPrivate,
