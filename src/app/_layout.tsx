@@ -79,11 +79,17 @@ export default function RootLayout() {
             }}
           />
 
+          {/* Dolda vyer: bara knappen i flikraden döljs (tabBarButton). Använd inte href: null – sedan
+              SDK 58 räknas en sådan flik som spärrad, och navigerar man dit skickas man tillbaka till kartlistan. */}
+
+          {/* tabBarItemStyle display: 'none' gör att de dolda flikarna inte heller tar plats i flikraden */}
+
           {/* Dold vy: Detaljkartan */}
           <Tabs.Screen
             name="map"
             options={{
-              href: null,
+              tabBarButton: () => null,
+              tabBarItemStyle: { display: 'none' },
               tabBarStyle: { display: 'none' },
             }}
           />
@@ -92,7 +98,8 @@ export default function RootLayout() {
           <Tabs.Screen
             name="create"
             options={{
-              href: null,
+              tabBarButton: () => null,
+              tabBarItemStyle: { display: 'none' },
               tabBarStyle: { display: 'none' },
             }}
           />

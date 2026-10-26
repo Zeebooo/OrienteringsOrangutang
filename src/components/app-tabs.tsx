@@ -30,7 +30,7 @@ export default function AppTabs() {
 				options={{
 					headerShown: false,
 					tabBarIcon: ({ color }) => (
-						<Feather name="map" size={28} color={color} />
+						<Feather name="map" size={28} color={color as string} />
 					),
 				}}
 			/>
@@ -41,7 +41,7 @@ export default function AppTabs() {
 				options={{
 					headerShown: false,
 					tabBarIcon: ({ color }) => (
-						<Feather name="user" size={28} color={color} />
+						<Feather name="user" size={28} color={color as string} />
 					),
 				}}
 			/>
@@ -52,7 +52,7 @@ export default function AppTabs() {
 				options={{
 					headerShown: false,
 					tabBarIcon: ({ color }) => (
-						<Feather name="map" size={28} color={color} />
+						<Feather name="map" size={28} color={color as string} />
 					),
 				}}
 			/>

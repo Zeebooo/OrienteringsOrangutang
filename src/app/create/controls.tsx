@@ -9,6 +9,7 @@ import {
 	TextInput,
 	TouchableOpacity,
 	View,
+	type HostInstance,
 } from 'react-native';
 import MapView, { Marker, Polyline, type MapPressEvent } from 'react-native-maps';
 import { captureRef } from 'react-native-view-shot';
@@ -46,7 +47,8 @@ export default function PlaceControlsScreen() {
 
 	// --- Bild på terrängen till kartlistan ---
 	// Vyn runt kartan fotograferas. Stegindikatorn och panelen ligger utanför den och kommer inte med.
-	const mapContainerRef = useRef<View>(null);
+	// HostInstance: sedan React Native 0.87 är View en funktion, så refen pekar på den inbyggda vyn
+	const mapContainerRef = useRef<HostInstance>(null);
 	const mapSizeRef = useRef<{ width: number; height: number } | null>(null);
 	const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

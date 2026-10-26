@@ -228,13 +228,15 @@ export default function MapDetailScreen() {
 	// --- DATABAS & EFFEKTER ---
 	useEffect(() => {
 		if (!mapId) return;
+		// Egen konstant: TypeScript minns inte att mapId kollats ovan när den används inne i funktionen nedan
+		const mapIdToLoad = mapId;
 
 		// Byter man karta innan hämtningen är klar ska det gamla svaret inte skriva över den nya kartan
 		let cancelled = false;
 
 		async function loadMapAndRun() {
 			try {
-				const mapResult = await fetchMapWithTerrain(mapId);
+				const mapResult = await fetchMapWithTerrain(mapIdToLoad);
 				if (cancelled) return;
 				if (mapResult) {
 					setMap(mapResult);

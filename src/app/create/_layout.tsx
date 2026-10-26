@@ -20,7 +20,14 @@ export default function CreateLayout() {
 
   return (
     <CreateMapProvider key={session}>
-      <Stack>
+      <Stack
+        screenOptions={{
+          // Sedan SDK 58 är rubriken genomskinlig och ritas ovanpå skärmen på iOS. Då hamnar
+          // stegindikatorn bakom den, så rubriken får en egen bakgrund igen.
+          headerTransparent: false,
+          headerStyle: { backgroundColor: Colors.light.beigeBg },
+        }}
+      >
         <Stack.Screen
           name="index"
           options={{
