@@ -11,16 +11,16 @@ import {
 	View,
 	type HostInstance,
 } from 'react-native';
-import MapView, { Marker, Polyline, type MapPressEvent } from 'react-native-maps';
+import MapView, { Marker, Polyline, type MapPressEvent, type Region } from 'react-native-maps';
 import { captureRef } from 'react-native-view-shot';
 
 import { StepProgress } from '@/components/StepProgress';
 import { TerrainLayer } from '@/components/TerrainLayer';
 import { Colors } from '@/constants/theme';
 import { useCreateMap } from '@/context/CreateMapContext';
-import type { BoundingBox, Control } from '@/types';
+import type { BoundingBox, Control, Coordinate } from '@/types';
 import { bboxToRegion } from '@/utilities/bboxToRegion';
-import { bboxCorners, clampToBbox, courseLengthInMeters, isInsideBbox } from '@/utilities/geo';
+import { bboxCorners, clampToBbox, courseLengthInMeters, distanceInMeters, isInsideBbox } from '@/utilities/geo';
 
 // Banan ritas i magenta, som på riktiga orienteringskartor
 const COURSE_COLOR = '#C0328A';
@@ -33,6 +33,13 @@ const THUMBNAIL_WIDTH = 300;
 const TERRAIN_RENDER_DELAY_MS = 2000;
 // Längsta tid kontrollerna kan vara låsta, ifall kartan aldrig blir redo
 const MAX_CAPTURE_WAIT_MS = 6000;
+
+// Tryck inom så här många pixlar från en kontroll räknas som ett tryck på kontrollen.
+// Kontrollen är 32 px bred, så det är dess radie plus lite marginal för fingret.
+const CONTROL_TAP_RADIUS_PX = 24;
+const METERS_PER_DEGREE_LAT = 111_320;
+// Två tryck så här tätt efter varandra räknas som samma tryck
+const DUPLICATE_PRESS_MS = 400;
 
 // Steg 2: tryck på kartan för att lägga till en kontroll, tryck på en kontroll för att redigera den
 export default function PlaceControlsScreen() {
@@ -51,6 +58,10 @@ export default function PlaceControlsScreen() {
 	const mapContainerRef = useRef<HostInstance>(null);
 	const mapSizeRef = useRef<{ width: number; height: number } | null>(null);
 	const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	// Vad kartan visar just nu (för att räkna om pixlar till meter) och när senaste kontrollen skapades
+	const regionRef = useRef<Region | null>(null);
+	const lastAddedAtRef = useRef(0);
 
 	// Medan bilden tas går det inte att lägga ut kontroller, så att de inte kommer med på bilden.
 	// Finns det redan kontroller (t.ex. när man kommer tillbaka till steget) tas ingen ny bild.
@@ -105,11 +116,29 @@ export default function PlaceControlsScreen() {
 	// Området man valde i steg 1 – kontrollerna måste ligga inom det
 	const area = terrain.bbox;
 
+	/**
+	 * Om en punkt ligger på (eller precis intill) en befintlig kontroll på skärmen.
+	 * Kartans zoom avgör hur många meter en kontroll täcker, så avståndet räknas om från pixlar.
+	 */
+	function isOnExistingControl(point: Coordinate) {
+		const size = mapSizeRef.current;
+		if (!size) return false;
+		const region = regionRef.current ?? bboxToRegion(area);
+		const metersPerPixel = (region.latitudeDelta * METERS_PER_DEGREE_LAT) / size.height;
+		const radiusM = CONTROL_TAP_RADIUS_PX * metersPerPixel;
+		return controls.some((control) => distanceInMeters(control, point) <= radiusM);
+	}
+
 	function handleMapPress(e: MapPressEvent) {
 		// På Android skickas även tryck på en markör till kartan – de ska inte skapa en ny kontroll
 		if (e.nativeEvent.action === 'marker-press') return;
 		// Bilden till kartlistan tas fortfarande
 		if (capturing) return;
+		// På iPhone når ett tryck på en kontroll även kartan, och då skulle en ny kontroll
+		// hamna gömd under den man tryckte på. Det trycket hör till kontrollen, inte kartan.
+		if (isOnExistingControl(e.nativeEvent.coordinate)) return;
+		// Samma tryck kan komma fram två gånger – då ska det bara bli en kontroll
+		if (Date.now() - lastAddedAtRef.current < DUPLICATE_PRESS_MS) return;
 
 		if (selectedId) {
 			setSelectedId(null); // ett tryck utanför stänger redigeringen
@@ -121,6 +150,7 @@ export default function PlaceControlsScreen() {
 			return;
 		}
 		setTappedOutside(false);
+		lastAddedAtRef.current = Date.now();
 		const id = addControl(e.nativeEvent.coordinate);
 		setSelectedId(id);
 		setIsNew(true);
@@ -152,6 +182,7 @@ export default function PlaceControlsScreen() {
 					style={StyleSheet.absoluteFill}
 					showsPointsOfInterests={false}
 					initialRegion={bboxToRegion(terrain.bbox)}
+					onRegionChangeComplete={(region) => (regionRef.current = region)}
 					onPress={handleMapPress}
 					// onMapReady, inte onMapLoaded – onMapLoaded finns bara för Google Maps på iOS
 					onMapReady={handleMapReady}
