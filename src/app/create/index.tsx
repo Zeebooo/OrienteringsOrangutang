@@ -8,6 +8,7 @@ import { StepProgress } from '@/components/StepProgress';
 import { Colors } from '@/constants/theme';
 import { useCreateMap } from '@/context/CreateMapContext';
 import campusTerrain from '@/data/terrain/campus.json';
+import mitTerrain from '@/data/terrain/mit.json';
 import { useLocation } from '@/hooks/use-location';
 import { bboxSizeInMeters, fetchTerrainForArea, MAX_AREA_SIDE_M } from '@/services/overpassDAL';
 import type { BoundingBox, Terrain } from '@/types';
@@ -21,6 +22,12 @@ const START_DELTA = 0.015;
 const TOP_SPACE = 64;
 const FRAME_MARGIN = 28;
 const DIM_COLOR = 'rgba(0, 0, 0, 0.25)';
+
+// Sparade terränger (från `npm run get-map`) som går att välja direkt under utveckling
+const TEST_TERRAINS = [
+	{ name: 'Campus', terrain: campusTerrain as Terrain },
+	{ name: 'MIT-huset', terrain: mitTerrain as Terrain },
+];
 
 // Bredden på bilden som visas i kartlistan. Lite större än där den visas, så den blir skarp.
 const THUMBNAIL_WIDTH = 300;
@@ -93,9 +100,10 @@ export default function SelectAreaScreen() {
 		}
 	}
 
-	// Bara under utveckling: hoppa över Overpass och använd en sparad terräng
-	function applyTestTerrain() {
-		setTerrain(campusTerrain as Terrain, null);
+	// Bara under utveckling: hoppa över Overpass och använd en sparad terräng.
+	// Bilden till kartlistan tas ändå i steg 2, så kartan får en bild med terrängen.
+	function applyTestTerrain(terrain: Terrain) {
+		setTerrain(terrain, null);
 		router.push('/create/controls');
 	}
 
@@ -153,9 +161,13 @@ export default function SelectAreaScreen() {
 
 				{/* __DEV__ är true under `npx expo start` och false i en riktig build */}
 				{__DEV__ && !loading && (
-					<TouchableOpacity onPress={applyTestTerrain}>
-						<Text style={styles.devLink}>Använd testkarta (Campus)</Text>
-					</TouchableOpacity>
+					<View style={styles.devLinks}>
+						{TEST_TERRAINS.map((test) => (
+							<TouchableOpacity key={test.name} onPress={() => applyTestTerrain(test.terrain)}>
+								<Text style={styles.devLink}>Använd testkarta ({test.name})</Text>
+							</TouchableOpacity>
+						))}
+					</View>
 				)}
 			</View>
 		</View>
@@ -270,6 +282,9 @@ const styles = StyleSheet.create({
 		color: Colors.light.background,
 		fontSize: 18,
 		fontWeight: '600',
+	},
+	devLinks: {
+		alignItems: 'center',
 	},
 	devLink: {
 		color: Colors.light.textMuted,

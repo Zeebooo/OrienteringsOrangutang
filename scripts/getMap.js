@@ -12,7 +12,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+// Flera servrar kör samma Overpass-tjänst. Om en är överbelastad provas nästa.
+const OVERPASS_URLS = [
+	'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+	'https://overpass-api.de/api/interpreter',
+	'https://overpass.private.coffee/api/interpreter',
+	'https://overpass.kumi.systems/api/interpreter',
+];
+const REQUEST_TIMEOUT_MS = 30_000;
 const OUT_DIR = path.join(process.cwd(), 'src', 'data', 'terrain');
 
 // Ytor ritas först och linjer sist, så att stigar hamnar ovanpå skogen.
@@ -55,14 +62,30 @@ function buildQuery({ south, west, north, east }) {
 	`;
 }
 
+// Provar servrarna i tur och ordning tills någon svarar (samma lista som appen använder)
 async function fetchOverpass(query) {
-	const response = await fetch(OVERPASS_URL, {
+	for (const url of OVERPASS_URLS) {
+		try {
+			const data = await fetchFromServer(url, query);
+			console.log(`Hämtade från ${new URL(url).host}`);
+			return data;
+		} catch (error) {
+			console.warn(`${new URL(url).host} svarade inte (${error.message.split('\n')[0]}), provar nästa…`);
+		}
+	}
+	throw new Error('Ingen Overpass-server svarade. Försök igen om en stund.');
+}
+
+async function fetchFromServer(url, query) {
+	const response = await fetch(url, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
 			'User-Agent': 'OrienteringsOrangutang/1.0 (skolprojekt)',
 		},
 		body: `data=${encodeURIComponent(query)}`,
+		// Utan gräns kan en överbelastad server få skriptet att vänta för evigt
+		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
 	});
 
 	if (!response.ok) {
